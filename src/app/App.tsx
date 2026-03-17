@@ -15,8 +15,18 @@ import { UserManagementPage } from '@/app/components/pages/UserManagementPage';
 import { AnalyticsPage } from '@/app/components/pages/AnalyticsPage';
 
 function AppContent() {
-  const { user, isAuthenticated } = useAuth();
+  const { user, isAuthenticated, isLoading } = useAuth();
   const [currentPage, setCurrentPage] = useState('dashboard');
+
+  if (isLoading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background">
+        <div className="rounded-2xl border border-border/60 bg-card px-6 py-4 text-sm text-muted-foreground shadow-sm">
+          Connecting to Supabase...
+        </div>
+      </div>
+    );
+  }
 
   if (!isAuthenticated) {
     return <LoginPage />;

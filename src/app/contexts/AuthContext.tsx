@@ -1,6 +1,8 @@
-import React, { createContext, useContext, useState, ReactNode } from 'react';
+import React, { createContext, useContext, useEffect, useState, ReactNode } from "react";
+import type { Session } from "@supabase/supabase-js";
+import { supabase } from "@/lib/supabase";
 
-export type UserRole = 'intern' | 'supervisor' | 'admin';
+export type UserRole = "intern" | "supervisor" | "admin";
 
 export interface User {
   id: string;
@@ -14,36 +16,100 @@ export interface User {
 interface AuthContextType {
   user: User | null;
   login: (email: string, password: string) => Promise<boolean>;
-  logout: () => void;
+  logout: () => Promise<void>;
   isAuthenticated: boolean;
+  isLoading: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// Mock users for demonstration
-const mockUsers: User[] = [
-  { id: '1', name: 'John Intern', email: 'intern@regris.com', role: 'intern', department: 'Engineering', birthdate: '1999-05-15' },
-  { id: '2', name: 'Jane Supervisor', email: 'supervisor@regris.com', role: 'supervisor', department: 'Engineering', birthdate: '1985-08-22' },
-  { id: '3', name: 'Admin User', email: 'admin@regris.com', role: 'admin', birthdate: '1980-03-10' },
-];
+function toTitleCase(value: string) {
+  return value
+    .split(/[\s._-]+/)
+    .filter(Boolean)
+    .map((part) => part[0].toUpperCase() + part.slice(1))
+    .join(" ");
+}
+
+function parseRole(role: unknown): UserRole {
+  if (role === "admin" || role === "supervisor" || role === "intern") {
+    return role;
+  }
+
+  return "intern";
+}
+
+function mapSessionToUser(session: Session | null): User | null {
+  const authUser = session?.user;
+  if (!authUser?.email) {
+    return null;
+  }
+
+  const metadata = authUser.user_metadata ?? {};
+  const appMetadata = authUser.app_metadata ?? {};
+  const emailName = authUser.email.split("@")[0];
+  const fullName =
+    metadata.full_name ??
+    metadata.name ??
+    metadata.display_name ??
+    toTitleCase(emailName);
+
+  return {
+    id: authUser.id,
+    name: fullName,
+    email: authUser.email,
+    role: parseRole(metadata.role ?? appMetadata.role),
+    department: metadata.department,
+    birthdate: metadata.birthdate,
+  };
+}
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    let mounted = true;
+
+    const bootstrap = async () => {
+      const { data } = await supabase.auth.getSession();
+      if (mounted) {
+        setUser(mapSessionToUser(data.session));
+        setIsLoading(false);
+      }
+    };
+
+    bootstrap();
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(mapSessionToUser(session));
+      setIsLoading(false);
+    });
+
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+    };
+  }, []);
 
   const login = async (email: string, password: string): Promise<boolean> => {
-    // Mock login - in real app, this would call an API
-    // For demo purposes, any password works
-    const foundUser = mockUsers.find(u => u.email === email);
-    
-    if (foundUser) {
-      setUser(foundUser);
-      return true;
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
+
+    if (error || !data.session) {
+      return false;
     }
-    
-    return false;
+
+    setUser(mapSessionToUser(data.session));
+    return true;
   };
 
-  const logout = () => {
+  const logout = async () => {
+    await supabase.auth.signOut();
     setUser(null);
   };
 
@@ -52,7 +118,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       user, 
       login, 
       logout, 
-      isAuthenticated: !!user 
+      isAuthenticated: !!user,
+      isLoading,
     }}>
       {children}
     </AuthContext.Provider>
@@ -62,7 +129,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 export function useAuth() {
   const context = useContext(AuthContext);
   if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider');
+    throw new Error("useAuth must be used within an AuthProvider");
   }
   return context;
 }

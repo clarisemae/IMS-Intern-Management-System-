@@ -113,12 +113,10 @@ export function LoginPage() {
               </Button>
             </form>
             <div className="rounded-2xl border bg-muted/40 p-4">
-              <p className="text-sm font-medium">Demo accounts</p>
+              <p className="text-sm font-medium">Supabase sign-in</p>
               <div className="mt-3 space-y-2 text-sm text-muted-foreground">
-                <p className="font-mono">intern@regris.com</p>
-                <p className="font-mono">supervisor@regris.com</p>
-                <p className="font-mono">admin@regris.com</p>
-                <p className="pt-1 text-xs">Use any password for this demo.</p>
+                <p>Use an email and password that already exist in your Supabase Auth users.</p>
+                <p className="pt-1 text-xs">Role-based dashboard access will use the user's `role` metadata when available.</p>
               </div>
             </div>
           </CardContent>
