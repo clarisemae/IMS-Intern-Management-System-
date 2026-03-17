@@ -1,11 +1,11 @@
+# IMS-Intern-Management-System-
 
-  # Intern Management Dashboard (Copy)
+IMS is a web-based application developed to efficiently manage and monitor internship activities. The system centralizes essential internship processes such as attendance tracking, task assignment, activity reporting, and communication between interns and supervisors.
 
-  This is a code bundle for Intern Management Dashboard (Copy). The original project is available at https://www.figma.com/design/tFFQ7DhdGNZo8IJu8wMyuQ/Intern-Management-Dashboard--Copy-.
+This code bundle is based on the Intern Management Dashboard design available at https://www.figma.com/design/tFFQ7DhdGNZo8IJu8wMyuQ/Intern-Management-Dashboard--Copy-.
 
-  ## Running the code
+## Running the code
 
-  Run `npm i` to install the dependencies.
+Run `npm i` to install the dependencies.
 
-  Run `npm run dev` to start the development server.
-  
+Run `npm run dev` to start the development server.
