@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useAuth } from '@/app/contexts/AuthContext';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/app/components/ui/card';
 import { Button } from '@/app/components/ui/button';
@@ -9,320 +9,535 @@ import { Label } from '@/app/components/ui/label';
 import { Textarea } from '@/app/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/app/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/app/components/ui/tabs';
-import { Plus, Calendar, User, AlertCircle } from 'lucide-react';
+import { Plus, Calendar, User, AlertCircle, Loader2, Pencil, Trash2 } from 'lucide-react';
+import { apiRequest } from '@/lib/api';
+
+type TaskPriority = 'low' | 'medium' | 'high';
+type TaskStatus = 'pending' | 'in-progress' | 'completed';
 
 interface Task {
   id: number;
   title: string;
   description: string;
-  assignedTo?: string;
-  deadline: string;
-  priority: 'low' | 'medium' | 'high';
-  status: 'pending' | 'in-progress' | 'completed';
+  assignedToId: number;
+  assignedToName: string;
+  assignedById: number;
+  assignedByName: string;
+  deadline: string | null;
+  priority: TaskPriority;
+  status: TaskStatus;
+  createdAt: string;
 }
+
+interface InternOption {
+  id: number;
+  name: string;
+}
+
+interface TaskFormState {
+  title: string;
+  description: string;
+  assignedToId: string;
+  deadline: string;
+  priority: TaskPriority;
+  status: TaskStatus;
+}
+
+const initialFormState: TaskFormState = {
+  title: '',
+  description: '',
+  assignedToId: '',
+  deadline: '',
+  priority: 'medium',
+  status: 'pending',
+};
 
 export function TasksPage() {
   const { user } = useAuth();
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [interns, setInterns] = useState<InternOption[]>([]);
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
+  const [taskStatusDraft, setTaskStatusDraft] = useState<TaskStatus>('pending');
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const [editingTask, setEditingTask] = useState<Task | null>(null);
+  const [formData, setFormData] = useState<TaskFormState>(initialFormState);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
+  const [error, setError] = useState('');
 
-  // Mock tasks data
-  const tasks: Task[] = [
-    {
-      id: 1,
-      title: 'Complete project documentation',
-      description: 'Write comprehensive documentation for the internship management system',
-      assignedTo: user?.role === 'supervisor' ? 'John Intern' : undefined,
-      deadline: '2026-02-05',
-      priority: 'high',
-      status: 'in-progress',
-    },
-    {
-      id: 2,
-      title: 'Review codebase for bugs',
-      description: 'Perform thorough code review and identify potential issues',
-      assignedTo: user?.role === 'supervisor' ? 'John Intern' : undefined,
-      deadline: '2026-02-03',
-      priority: 'medium',
-      status: 'pending',
-    },
-    {
-      id: 3,
-      title: 'Attend team meeting',
-      description: 'Weekly team sync-up meeting',
-      assignedTo: user?.role === 'supervisor' ? 'John Intern' : undefined,
-      deadline: '2026-02-01',
-      priority: 'low',
-      status: 'pending',
-    },
-    {
-      id: 4,
-      title: 'Database schema optimization',
-      description: 'Optimize database queries for better performance',
-      assignedTo: user?.role === 'supervisor' ? 'Sarah Lee' : undefined,
-      deadline: '2026-02-08',
-      priority: 'high',
-      status: 'completed',
-    },
-  ];
+  const isSupervisorView = user?.role === 'supervisor' || user?.role === 'admin';
+
+  const loadTasks = async () => {
+    setIsLoading(true);
+    setError('');
+
+    try {
+      const data = await apiRequest<{ tasks: Task[] }>('/tasks');
+      setTasks(data.tasks);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load tasks.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const loadInterns = async () => {
+    if (!isSupervisorView) {
+      return;
+    }
+
+    try {
+      const data = await apiRequest<{ interns: InternOption[] }>('/tasks/interns');
+      setInterns(data.interns);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load interns.');
+    }
+  };
+
+  useEffect(() => {
+    loadTasks();
+    loadInterns();
+  }, [user?.role]);
 
   const filterTasksByStatus = (status: string) => {
-    if (status === 'all') return tasks;
-    return tasks.filter(task => task.status === status);
+    if (status === 'all') {
+      return tasks;
+    }
+
+    return tasks.filter((task) => task.status === status);
   };
 
   const getPriorityColor = (priority: string) => {
     switch (priority) {
-      case 'high': return 'destructive';
-      case 'medium': return 'default';
-      case 'low': return 'secondary';
-      default: return 'secondary';
+      case 'high':
+        return 'destructive';
+      case 'medium':
+        return 'default';
+      case 'low':
+      default:
+        return 'secondary';
     }
   };
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'completed': return 'default';
-      case 'in-progress': return 'default';
-      case 'pending': return 'secondary';
-      default: return 'secondary';
+      case 'completed':
+        return 'default';
+      case 'in-progress':
+        return 'default';
+      case 'pending':
+      default:
+        return 'secondary';
     }
+  };
+
+  const stats = useMemo(() => ({
+    total: tasks.length,
+    pending: tasks.filter((task) => task.status === 'pending').length,
+    inProgress: tasks.filter((task) => task.status === 'in-progress').length,
+    completed: tasks.filter((task) => task.status === 'completed').length,
+  }), [tasks]);
+
+  const openCreateDialog = () => {
+    setEditingTask(null);
+    setFormData(initialFormState);
+    setError('');
+    setIsCreateDialogOpen(true);
+  };
+
+  const openEditDialog = (task: Task) => {
+    setEditingTask(task);
+    setFormData({
+      title: task.title,
+      description: task.description ?? '',
+      assignedToId: String(task.assignedToId),
+      deadline: task.deadline ? String(task.deadline).slice(0, 10) : '',
+      priority: task.priority,
+      status: task.status,
+    });
+    setError('');
+    setIsCreateDialogOpen(true);
+  };
+
+  const closeDialog = () => {
+    setIsCreateDialogOpen(false);
+    setEditingTask(null);
+    setFormData(initialFormState);
+    setError('');
+  };
+
+  const handleSubmitTask = async () => {
+    setIsSaving(true);
+    setError('');
+
+    try {
+      const payload = {
+        ...formData,
+        assignedToId: Number(formData.assignedToId),
+      };
+
+      if (editingTask) {
+        await apiRequest(`/tasks/${editingTask.id}`, {
+          method: 'PUT',
+          body: JSON.stringify(payload),
+        });
+      } else {
+        await apiRequest('/tasks', {
+          method: 'POST',
+          body: JSON.stringify(payload),
+        });
+      }
+
+      closeDialog();
+      await loadTasks();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to save task.');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleDeleteTask = async (task: Task) => {
+    const confirmed = window.confirm(`Delete task "${task.title}"?`);
+
+    if (!confirmed) {
+      return;
+    }
+
+    try {
+      await apiRequest(`/tasks/${task.id}`, { method: 'DELETE' });
+
+      if (selectedTask?.id === task.id) {
+        setSelectedTask(null);
+      }
+
+      await loadTasks();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to delete task.');
+    }
+  };
+
+  const handleUpdateTaskStatus = async () => {
+    if (!selectedTask) {
+      return;
+    }
+
+    try {
+      await apiRequest(`/tasks/${selectedTask.id}`, {
+        method: 'PUT',
+        body: JSON.stringify({
+          status: taskStatusDraft,
+        }),
+      });
+
+      await loadTasks();
+      setSelectedTask((current) => (current ? { ...current, status: taskStatusDraft } : current));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to update task status.');
+    }
+  };
+
+  const openTaskDetails = (task: Task) => {
+    setSelectedTask(task);
+    setTaskStatusDraft(task.status);
+    setError('');
   };
 
   return (
     <div className="p-6 space-y-6">
-      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-semibold">Tasks</h1>
-          <p className="text-gray-600 mt-1">
-            {user?.role === 'supervisor' ? 'Manage and assign tasks to interns' : 'View and manage your assigned tasks'}
+          <p className="mt-1 text-gray-600">
+            {isSupervisorView ? 'Manage and assign tasks to interns' : 'View and manage your assigned tasks'}
           </p>
         </div>
-        {user?.role === 'supervisor' && (
-          <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-            <DialogTrigger asChild>
-              <Button>
-                <Plus className="w-4 h-4 mr-2" />
-                Create Task
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="max-w-2xl">
-              <DialogHeader>
-                <DialogTitle>Create New Task</DialogTitle>
-                <DialogDescription>
-                  Assign a new task to an intern
-                </DialogDescription>
-              </DialogHeader>
-              <div className="space-y-4 py-4">
-                <div className="space-y-2">
-                  <Label htmlFor="task-title">Task Title</Label>
-                  <Input id="task-title" placeholder="Enter task title" />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="task-description">Description</Label>
-                  <Textarea id="task-description" placeholder="Describe the task" rows={4} />
-                </div>
-                <div className="grid grid-cols-2 gap-4">
+        {isSupervisorView && (
+          <>
+            <Button onClick={openCreateDialog}>
+              <Plus className="mr-2 h-4 w-4" />
+              Create Task
+            </Button>
+            <Dialog open={isCreateDialogOpen} onOpenChange={(open) => (!open ? closeDialog() : setIsCreateDialogOpen(true))}>
+              <DialogContent className="max-w-2xl">
+                <DialogHeader>
+                  <DialogTitle>{editingTask ? 'Edit Task' : 'Create New Task'}</DialogTitle>
+                  <DialogDescription>
+                    {editingTask ? 'Update the task details.' : 'Assign a new task to an intern.'}
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="space-y-4 py-4">
                   <div className="space-y-2">
-                    <Label htmlFor="assign-to">Assign To</Label>
-                    <Select>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select intern" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="intern1">John Intern</SelectItem>
-                        <SelectItem value="intern2">Sarah Lee</SelectItem>
-                        <SelectItem value="intern3">Mike Johnson</SelectItem>
-                      </SelectContent>
-                    </Select>
+                    <Label htmlFor="task-title">Task Title</Label>
+                    <Input
+                      id="task-title"
+                      placeholder="Enter task title"
+                      value={formData.title}
+                      onChange={(e) => setFormData((current) => ({ ...current, title: e.target.value }))}
+                    />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="deadline">Deadline</Label>
-                    <Input id="deadline" type="date" />
+                    <Label htmlFor="task-description">Description</Label>
+                    <Textarea
+                      id="task-description"
+                      placeholder="Describe the task"
+                      rows={4}
+                      value={formData.description}
+                      onChange={(e) => setFormData((current) => ({ ...current, description: e.target.value }))}
+                    />
                   </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="assign-to">Assign To</Label>
+                      <Select value={formData.assignedToId} onValueChange={(value) => setFormData((current) => ({ ...current, assignedToId: value }))}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select intern" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {interns.map((intern) => (
+                            <SelectItem key={intern.id} value={String(intern.id)}>
+                              {intern.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="deadline">Deadline</Label>
+                      <Input
+                        id="deadline"
+                        type="date"
+                        value={formData.deadline}
+                        onChange={(e) => setFormData((current) => ({ ...current, deadline: e.target.value }))}
+                      />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="priority">Priority</Label>
+                      <Select value={formData.priority} onValueChange={(value: TaskPriority) => setFormData((current) => ({ ...current, priority: value }))}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select priority" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="low">Low</SelectItem>
+                          <SelectItem value="medium">Medium</SelectItem>
+                          <SelectItem value="high">High</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="status">Status</Label>
+                      <Select value={formData.status} onValueChange={(value: TaskStatus) => setFormData((current) => ({ ...current, status: value }))}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select status" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="pending">Pending</SelectItem>
+                          <SelectItem value="in-progress">In Progress</SelectItem>
+                          <SelectItem value="completed">Completed</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                  {error && (
+                    <p className="rounded-xl border border-destructive/20 bg-destructive/5 px-3 py-2 text-sm text-destructive">
+                      {error}
+                    </p>
+                  )}
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="priority">Priority</Label>
-                  <Select>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select priority" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="low">Low</SelectItem>
-                      <SelectItem value="medium">Medium</SelectItem>
-                      <SelectItem value="high">High</SelectItem>
-                    </SelectContent>
-                  </Select>
+                <div className="flex justify-end gap-2">
+                  <Button variant="outline" onClick={closeDialog} disabled={isSaving}>
+                    Cancel
+                  </Button>
+                  <Button onClick={handleSubmitTask} disabled={isSaving}>
+                    {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    {editingTask ? 'Save Changes' : 'Create Task'}
+                  </Button>
                 </div>
-              </div>
-              <div className="flex justify-end gap-2">
-                <Button variant="outline" onClick={() => setIsCreateDialogOpen(false)}>
-                  Cancel
-                </Button>
-                <Button onClick={() => setIsCreateDialogOpen(false)}>
-                  Create Task
-                </Button>
-              </div>
-            </DialogContent>
-          </Dialog>
+              </DialogContent>
+            </Dialog>
+          </>
         )}
       </div>
 
-      {/* Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      {error && !isCreateDialogOpen && (
+        <p className="rounded-xl border border-destructive/20 bg-destructive/5 px-4 py-3 text-sm text-destructive">
+          {error}
+        </p>
+      )}
+
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
         <Card>
           <CardContent className="p-6">
             <p className="text-sm text-gray-600">Total Tasks</p>
-            <p className="text-3xl font-semibold mt-2">{tasks.length}</p>
+            <p className="mt-2 text-3xl font-semibold">{stats.total}</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-6">
             <p className="text-sm text-gray-600">Pending</p>
-            <p className="text-3xl font-semibold mt-2">{tasks.filter(t => t.status === 'pending').length}</p>
+            <p className="mt-2 text-3xl font-semibold">{stats.pending}</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-6">
             <p className="text-sm text-gray-600">In Progress</p>
-            <p className="text-3xl font-semibold mt-2">{tasks.filter(t => t.status === 'in-progress').length}</p>
+            <p className="mt-2 text-3xl font-semibold">{stats.inProgress}</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-6">
             <p className="text-sm text-gray-600">Completed</p>
-            <p className="text-3xl font-semibold mt-2">{tasks.filter(t => t.status === 'completed').length}</p>
+            <p className="mt-2 text-3xl font-semibold">{stats.completed}</p>
           </CardContent>
         </Card>
       </div>
 
-      {/* Tasks List */}
       <Card>
         <CardHeader>
           <CardTitle>Task List</CardTitle>
           <CardDescription>View and manage tasks</CardDescription>
         </CardHeader>
         <CardContent>
-          <Tabs defaultValue="all">
-            <TabsList>
-              <TabsTrigger value="all">All</TabsTrigger>
-              <TabsTrigger value="pending">Pending</TabsTrigger>
-              <TabsTrigger value="in-progress">In Progress</TabsTrigger>
-              <TabsTrigger value="completed">Completed</TabsTrigger>
-            </TabsList>
-            
-            {['all', 'pending', 'in-progress', 'completed'].map((status) => (
-              <TabsContent key={status} value={status} className="space-y-3 mt-4">
-                {filterTasksByStatus(status).map((task) => (
-                  <Dialog key={task.id}>
-                    <DialogTrigger asChild>
-                      <div className="p-4 border rounded-lg hover:bg-gray-50 transition-colors cursor-pointer">
-                        <div className="flex items-start justify-between mb-3">
-                          <div className="flex-1">
-                            <h4 className="font-medium text-lg mb-2">{task.title}</h4>
-                            <p className="text-sm text-gray-600 line-clamp-2">{task.description}</p>
-                          </div>
-                          <div className="ml-4">
-                            <Badge variant={getPriorityColor(task.priority)}>
-                              {task.priority}
-                            </Badge>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-4 text-sm text-gray-600">
-                          {task.assignedTo && (
-                            <div className="flex items-center gap-1">
-                              <User className="w-4 h-4" />
-                              <span>{task.assignedTo}</span>
+          {isLoading ? (
+            <div className="flex min-h-48 items-center justify-center text-sm text-muted-foreground">
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              Loading tasks...
+            </div>
+          ) : (
+            <Tabs defaultValue="all">
+              <TabsList>
+                <TabsTrigger value="all">All</TabsTrigger>
+                <TabsTrigger value="pending">Pending</TabsTrigger>
+                <TabsTrigger value="in-progress">In Progress</TabsTrigger>
+                <TabsTrigger value="completed">Completed</TabsTrigger>
+              </TabsList>
+
+              {['all', 'pending', 'in-progress', 'completed'].map((status) => (
+                <TabsContent key={status} value={status} className="mt-4 space-y-3">
+                  {filterTasksByStatus(status).map((task) => (
+                    <Dialog key={task.id} onOpenChange={(open) => (!open ? setSelectedTask(null) : openTaskDetails(task))}>
+                      <DialogTrigger asChild>
+                        <div className="cursor-pointer rounded-lg border p-4 transition-colors hover:bg-gray-50">
+                          <div className="mb-3 flex items-start justify-between">
+                            <div className="flex-1">
+                              <h4 className="mb-2 text-lg font-medium">{task.title}</h4>
+                              <p className="line-clamp-2 text-sm text-gray-600">{task.description || 'No description provided.'}</p>
                             </div>
-                          )}
-                          <div className="flex items-center gap-1">
-                            <Calendar className="w-4 h-4" />
-                            <span>{new Date(task.deadline).toLocaleDateString()}</span>
-                          </div>
-                          <Badge variant={getStatusColor(task.status)}>
-                            {task.status === 'in-progress' ? 'In Progress' : task.status.charAt(0).toUpperCase() + task.status.slice(1)}
-                          </Badge>
-                        </div>
-                      </div>
-                    </DialogTrigger>
-                    <DialogContent>
-                      <DialogHeader>
-                        <DialogTitle>{task.title}</DialogTitle>
-                        <DialogDescription>Task Details</DialogDescription>
-                      </DialogHeader>
-                      <div className="space-y-4 py-4">
-                        <div>
-                          <Label>Description</Label>
-                          <p className="text-sm text-gray-600 mt-2">{task.description}</p>
-                        </div>
-                        <div className="grid grid-cols-2 gap-4">
-                          <div>
-                            <Label>Priority</Label>
-                            <p className="text-sm mt-2">
+                            <div className="ml-4">
                               <Badge variant={getPriorityColor(task.priority)}>
                                 {task.priority}
                               </Badge>
-                            </p>
+                            </div>
                           </div>
-                          <div>
-                            <Label>Status</Label>
-                            <p className="text-sm mt-2">
-                              <Badge variant={getStatusColor(task.status)}>
-                                {task.status === 'in-progress' ? 'In Progress' : task.status.charAt(0).toUpperCase() + task.status.slice(1)}
-                              </Badge>
-                            </p>
+                          <div className="flex items-center gap-4 text-sm text-gray-600">
+                            <div className="flex items-center gap-1">
+                              <User className="h-4 w-4" />
+                              <span>{task.assignedToName}</span>
+                            </div>
+                            <div className="flex items-center gap-1">
+                              <Calendar className="h-4 w-4" />
+                              <span>{task.deadline ? new Date(task.deadline).toLocaleDateString() : 'No deadline'}</span>
+                            </div>
+                            <Badge variant={getStatusColor(task.status)}>
+                              {task.status === 'in-progress' ? 'In Progress' : task.status.charAt(0).toUpperCase() + task.status.slice(1)}
+                            </Badge>
                           </div>
                         </div>
-                        {task.assignedTo && (
+                      </DialogTrigger>
+                      <DialogContent>
+                        <DialogHeader>
+                          <DialogTitle>{task.title}</DialogTitle>
+                          <DialogDescription>Task Details</DialogDescription>
+                        </DialogHeader>
+                        <div className="space-y-4 py-4">
+                          <div>
+                            <Label>Description</Label>
+                            <p className="mt-2 text-sm text-gray-600">{task.description || 'No description provided.'}</p>
+                          </div>
+                          <div className="grid grid-cols-2 gap-4">
+                            <div>
+                              <Label>Priority</Label>
+                              <p className="mt-2 text-sm">
+                                <Badge variant={getPriorityColor(task.priority)}>
+                                  {task.priority}
+                                </Badge>
+                              </p>
+                            </div>
+                            <div>
+                              <Label>Status</Label>
+                              <p className="mt-2 text-sm">
+                                <Badge variant={getStatusColor(task.status)}>
+                                  {task.status === 'in-progress' ? 'In Progress' : task.status.charAt(0).toUpperCase() + task.status.slice(1)}
+                                </Badge>
+                              </p>
+                            </div>
+                          </div>
                           <div>
                             <Label>Assigned To</Label>
-                            <p className="text-sm text-gray-600 mt-2">{task.assignedTo}</p>
+                            <p className="mt-2 text-sm text-gray-600">{task.assignedToName}</p>
                           </div>
-                        )}
-                        <div>
-                          <Label>Deadline</Label>
-                          <p className="text-sm text-gray-600 mt-2">{new Date(task.deadline).toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
+                          {isSupervisorView && (
+                            <div>
+                              <Label>Assigned By</Label>
+                              <p className="mt-2 text-sm text-gray-600">{task.assignedByName}</p>
+                            </div>
+                          )}
+                          <div>
+                            <Label>Deadline</Label>
+                            <p className="mt-2 text-sm text-gray-600">
+                              {task.deadline
+                                ? new Date(task.deadline).toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })
+                                : 'No deadline'}
+                            </p>
+                          </div>
+                          {!isSupervisorView && task.status !== 'completed' && selectedTask?.id === task.id && (
+                            <div className="space-y-2 border-t pt-4">
+                              <Label>Update Status</Label>
+                              <Select value={taskStatusDraft} onValueChange={(value: TaskStatus) => setTaskStatusDraft(value)}>
+                                <SelectTrigger>
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="pending">Pending</SelectItem>
+                                  <SelectItem value="in-progress">In Progress</SelectItem>
+                                  <SelectItem value="completed">Completed</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </div>
+                          )}
                         </div>
-                        {user?.role === 'intern' && task.status !== 'completed' && (
-                          <div className="space-y-2 pt-4 border-t">
-                            <Label>Update Status</Label>
-                            <Select defaultValue={task.status}>
-                              <SelectTrigger>
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="pending">Pending</SelectItem>
-                                <SelectItem value="in-progress">In Progress</SelectItem>
-                                <SelectItem value="completed">Completed</SelectItem>
-                              </SelectContent>
-                            </Select>
-                          </div>
-                        )}
-                      </div>
-                      <div className="flex justify-end gap-2">
-                        {user?.role === 'intern' && task.status !== 'completed' && (
-                          <Button>Update Status</Button>
-                        )}
-                        {user?.role === 'supervisor' && (
-                          <>
-                            <Button variant="outline">Edit</Button>
-                            <Button variant="destructive">Delete</Button>
-                          </>
-                        )}
-                      </div>
-                    </DialogContent>
-                  </Dialog>
-                ))}
-                {filterTasksByStatus(status).length === 0 && (
-                  <div className="text-center py-12 text-gray-500">
-                    <AlertCircle className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                    <p>No tasks found</p>
-                  </div>
-                )}
-              </TabsContent>
-            ))}
-          </Tabs>
+                        <div className="flex justify-end gap-2">
+                          {!isSupervisorView && task.status !== 'completed' && selectedTask?.id === task.id && (
+                            <Button onClick={handleUpdateTaskStatus}>Update Status</Button>
+                          )}
+                          {isSupervisorView && (
+                            <>
+                              <Button variant="outline" onClick={() => openEditDialog(task)}>
+                                <Pencil className="mr-2 h-4 w-4" />
+                                Edit
+                              </Button>
+                              <Button variant="destructive" onClick={() => handleDeleteTask(task)}>
+                                <Trash2 className="mr-2 h-4 w-4" />
+                                Delete
+                              </Button>
+                            </>
+                          )}
+                        </div>
+                      </DialogContent>
+                    </Dialog>
+                  ))}
+                  {filterTasksByStatus(status).length === 0 && (
+                    <div className="py-12 text-center text-gray-500">
+                      <AlertCircle className="mx-auto mb-4 h-12 w-12 opacity-50" />
+                      <p>No tasks found</p>
+                    </div>
+                  )}
+                </TabsContent>
+              ))}
+            </Tabs>
+          )}
         </CardContent>
       </Card>
     </div>

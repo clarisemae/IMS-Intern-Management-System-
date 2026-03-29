@@ -3,13 +3,12 @@ import { useAuth, UserRole } from '@/app/contexts/AuthContext';
 import { Avatar, AvatarFallback } from '@/app/components/ui/avatar';
 import { Badge } from '@/app/components/ui/badge';
 import { Button } from '@/app/components/ui/button';
-import { 
-  LayoutDashboard, 
-  Clock, 
-  ListTodo, 
-  FileText, 
-  MessageSquare, 
-  User, 
+import {
+  LayoutDashboard,
+  Clock,
+  ListTodo,
+  MessageSquare,
+  User,
   LogOut,
   Users,
   BarChart3,
@@ -28,7 +27,6 @@ const menuItems: MenuItem[] = [
   { icon: LayoutDashboard, label: 'Dashboard', id: 'dashboard', roles: ['intern', 'supervisor', 'admin'] },
   { icon: Clock, label: 'Attendance', id: 'attendance', roles: ['intern'] },
   { icon: ListTodo, label: 'Tasks', id: 'tasks', roles: ['intern', 'supervisor'] },
-  { icon: FileText, label: 'Reports', id: 'reports', roles: ['intern', 'supervisor'] },
   { icon: MessageSquare, label: 'Messages', id: 'messages', roles: ['intern', 'supervisor', 'admin'] },
   { icon: Users, label: 'User Management', id: 'users', roles: ['admin'] },
   { icon: BarChart3, label: 'Analytics', id: 'analytics', roles: ['admin', 'supervisor'] },

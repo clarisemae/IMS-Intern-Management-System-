@@ -1,66 +1,72 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/app/components/ui/card';
 import { Button } from '@/app/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/app/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/app/components/ui/tabs';
-import { Download, TrendingUp, TrendingDown, Users, Clock, CheckCircle } from 'lucide-react';
+import { Download, TrendingUp, Users, Clock, CheckCircle, Loader2 } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, AreaChart, Area, RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis } from 'recharts';
+import { apiRequest } from '@/lib/api';
+
+interface Metric {
+  label: string;
+  value: string;
+  change: string;
+  trend: 'up' | 'down';
+  icon: 'users' | 'clock' | 'check' | 'trending';
+}
+
+interface AnalyticsData {
+  metrics: Metric[];
+  performanceData: Array<{ name: string; attendance: number; taskCompletion: number; reportQuality: number }>;
+  monthlyTrends: Array<{ month: string; interns: number; hours: number; tasks: number }>;
+  departmentStats: Array<{ department: string; interns: number; avgHours: number; taskCompletion: number }>;
+  hourlyDistribution: Array<{ hour: string; count: number }>;
+  reportQualityRate: number;
+}
+
+const iconMap = {
+  users: Users,
+  clock: Clock,
+  check: CheckCircle,
+  trending: TrendingUp,
+};
 
 export function AnalyticsPage() {
-  // Mock data
-  const performanceData = [
-    { name: 'John Intern', attendance: 95, taskCompletion: 92, reportQuality: 88 },
-    { name: 'Sarah Lee', attendance: 92, taskCompletion: 85, reportQuality: 90 },
-    { name: 'Mike Johnson', attendance: 98, taskCompletion: 94, reportQuality: 91 },
-    { name: 'Emma Davis', attendance: 88, taskCompletion: 78, reportQuality: 82 },
-  ];
+  const [range, setRange] = useState('30');
+  const [data, setData] = useState<AnalyticsData | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const monthlyTrends = [
-    { month: 'Aug', interns: 18, hours: 2520, tasks: 156 },
-    { month: 'Sep', interns: 20, hours: 2800, tasks: 178 },
-    { month: 'Oct', interns: 22, hours: 3080, tasks: 195 },
-    { month: 'Nov', interns: 23, hours: 3220, tasks: 203 },
-    { month: 'Dec', interns: 21, hours: 2940, tasks: 182 },
-    { month: 'Jan', interns: 24, hours: 3360, tasks: 218 },
-  ];
+  useEffect(() => {
+    const loadAnalytics = async () => {
+      try {
+        const response = await apiRequest<AnalyticsData>('/analytics');
+        setData(response);
+      } finally {
+        setIsLoading(false);
+      }
+    };
 
-  const departmentStats = [
-    { department: 'Engineering', interns: 12, avgHours: 158, taskCompletion: 91 },
-    { department: 'Design', interns: 6, avgHours: 152, taskCompletion: 88 },
-    { department: 'Marketing', interns: 4, avgHours: 145, taskCompletion: 85 },
-    { department: 'IT', interns: 2, avgHours: 162, taskCompletion: 94 },
-  ];
+    loadAnalytics();
+  }, [range]);
 
-  const hourlyDistribution = [
-    { hour: '8 AM', count: 12 },
-    { hour: '9 AM', count: 24 },
-    { hour: '10 AM', count: 24 },
-    { hour: '11 AM', count: 24 },
-    { hour: '12 PM', count: 18 },
-    { hour: '1 PM', count: 22 },
-    { hour: '2 PM', count: 24 },
-    { hour: '3 PM', count: 24 },
-    { hour: '4 PM', count: 22 },
-    { hour: '5 PM', count: 16 },
-  ];
-
-  const metrics = [
-    { label: 'Avg. Attendance', value: '94%', change: '+2.5%', trend: 'up', icon: Users },
-    { label: 'Avg. Hours/Week', value: '38.2', change: '+1.8', trend: 'up', icon: Clock },
-    { label: 'Task Completion', value: '89%', change: '-1.2%', trend: 'down', icon: CheckCircle },
-    { label: 'Performance Score', value: '87%', change: '+3.1%', trend: 'up', icon: TrendingUp },
-  ];
+  if (isLoading || !data) {
+    return (
+      <div className="flex min-h-[320px] items-center justify-center text-sm text-muted-foreground">
+        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+        Loading analytics...
+      </div>
+    );
+  }
 
   return (
     <div className="p-6 space-y-6">
-      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-semibold">Analytics</h1>
-          <p className="text-gray-600 mt-1">Detailed insights and performance metrics</p>
+          <p className="mt-1 text-gray-600">Detailed insights and performance metrics</p>
         </div>
         <div className="flex items-center gap-2">
-          <Select defaultValue="30">
+          <Select value={range} onValueChange={setRange}>
             <SelectTrigger className="w-40">
               <SelectValue />
             </SelectTrigger>
@@ -72,29 +78,27 @@ export function AnalyticsPage() {
             </SelectContent>
           </Select>
           <Button variant="outline">
-            <Download className="w-4 h-4 mr-2" />
+            <Download className="mr-2 h-4 w-4" />
             Export
           </Button>
         </div>
       </div>
 
-      {/* Key Metrics */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        {metrics.map((metric, index) => {
-          const Icon = metric.icon;
-          const TrendIcon = metric.trend === 'up' ? TrendingUp : TrendingDown;
-          
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
+        {data.metrics.map((metric) => {
+          const Icon = iconMap[metric.icon];
+
           return (
-            <Card key={index}>
+            <Card key={metric.label}>
               <CardContent className="p-6">
-                <div className="flex items-center justify-between mb-2">
+                <div className="mb-2 flex items-center justify-between">
                   <p className="text-sm text-gray-600">{metric.label}</p>
-                  <Icon className="w-4 h-4 text-gray-400" />
+                  <Icon className="h-4 w-4 text-gray-400" />
                 </div>
                 <div className="flex items-end justify-between">
                   <p className="text-3xl font-semibold">{metric.value}</p>
-                  <div className={`flex items-center text-xs ${metric.trend === 'up' ? 'text-green-600' : 'text-red-600'}`}>
-                    <TrendIcon className="w-3 h-3 mr-1" />
+                  <div className="flex items-center text-xs text-green-600">
+                    <TrendingUp className="mr-1 h-3 w-3" />
                     {metric.change}
                   </div>
                 </div>
@@ -104,7 +108,6 @@ export function AnalyticsPage() {
         })}
       </div>
 
-      {/* Charts Tabs */}
       <Tabs defaultValue="trends">
         <TabsList>
           <TabsTrigger value="trends">Trends</TabsTrigger>
@@ -114,7 +117,7 @@ export function AnalyticsPage() {
         </TabsList>
 
         <TabsContent value="trends" className="space-y-6">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
             <Card>
               <CardHeader>
                 <CardTitle>Intern Growth</CardTitle>
@@ -122,7 +125,7 @@ export function AnalyticsPage() {
               </CardHeader>
               <CardContent>
                 <ResponsiveContainer width="100%" height={300}>
-                  <AreaChart data={monthlyTrends}>
+                  <AreaChart data={data.monthlyTrends}>
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis dataKey="month" />
                     <YAxis />
@@ -140,7 +143,7 @@ export function AnalyticsPage() {
               </CardHeader>
               <CardContent>
                 <ResponsiveContainer width="100%" height={300}>
-                  <LineChart data={monthlyTrends}>
+                  <LineChart data={data.monthlyTrends}>
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis dataKey="month" />
                     <YAxis />
@@ -155,11 +158,11 @@ export function AnalyticsPage() {
           <Card>
             <CardHeader>
               <CardTitle>Task Completion Trends</CardTitle>
-              <CardDescription>Tasks completed per month</CardDescription>
+              <CardDescription>Tasks created per month</CardDescription>
             </CardHeader>
             <CardContent>
               <ResponsiveContainer width="100%" height={300}>
-                <BarChart data={monthlyTrends}>
+                <BarChart data={data.monthlyTrends}>
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="month" />
                   <YAxis />
@@ -179,7 +182,7 @@ export function AnalyticsPage() {
             </CardHeader>
             <CardContent className="flex justify-center">
               <ResponsiveContainer width="100%" height={400}>
-                <RadarChart data={performanceData}>
+                <RadarChart data={data.performanceData}>
                   <PolarGrid />
                   <PolarAngleAxis dataKey="name" />
                   <PolarRadiusAxis angle={90} domain={[0, 100]} />
@@ -192,9 +195,9 @@ export function AnalyticsPage() {
             </CardContent>
           </Card>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {performanceData.map((intern, index) => (
-              <Card key={index}>
+          <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+            {data.performanceData.map((intern) => (
+              <Card key={intern.name}>
                 <CardHeader>
                   <CardTitle className="text-lg">{intern.name}</CardTitle>
                   <CardDescription>Individual performance metrics</CardDescription>
@@ -205,8 +208,8 @@ export function AnalyticsPage() {
                       <span className="text-gray-600">Attendance</span>
                       <span className="font-medium">{intern.attendance}%</span>
                     </div>
-                    <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
-                      <div className="h-full bg-purple-500" style={{ width: `${intern.attendance}%` }}></div>
+                    <div className="h-2 overflow-hidden rounded-full bg-gray-100">
+                      <div className="h-full bg-purple-500" style={{ width: `${intern.attendance}%` }} />
                     </div>
                   </div>
                   <div className="space-y-2">
@@ -214,8 +217,8 @@ export function AnalyticsPage() {
                       <span className="text-gray-600">Task Completion</span>
                       <span className="font-medium">{intern.taskCompletion}%</span>
                     </div>
-                    <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
-                      <div className="h-full bg-green-500" style={{ width: `${intern.taskCompletion}%` }}></div>
+                    <div className="h-2 overflow-hidden rounded-full bg-gray-100">
+                      <div className="h-full bg-green-500" style={{ width: `${intern.taskCompletion}%` }} />
                     </div>
                   </div>
                   <div className="space-y-2">
@@ -223,8 +226,8 @@ export function AnalyticsPage() {
                       <span className="text-gray-600">Report Quality</span>
                       <span className="font-medium">{intern.reportQuality}%</span>
                     </div>
-                    <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
-                      <div className="h-full bg-yellow-500" style={{ width: `${intern.reportQuality}%` }}></div>
+                    <div className="h-2 overflow-hidden rounded-full bg-gray-100">
+                      <div className="h-full bg-yellow-500" style={{ width: `${intern.reportQuality}%` }} />
                     </div>
                   </div>
                 </CardContent>
@@ -241,7 +244,7 @@ export function AnalyticsPage() {
             </CardHeader>
             <CardContent>
               <ResponsiveContainer width="100%" height={400}>
-                <BarChart data={departmentStats} layout="vertical">
+                <BarChart data={data.departmentStats} layout="vertical">
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis type="number" />
                   <YAxis type="category" dataKey="department" />
@@ -253,11 +256,11 @@ export function AnalyticsPage() {
             </CardContent>
           </Card>
 
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            {departmentStats.map((dept, index) => (
-              <Card key={index}>
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
+            {data.departmentStats.map((dept) => (
+              <Card key={dept.department}>
                 <CardContent className="p-6">
-                  <h4 className="font-medium mb-4">{dept.department}</h4>
+                  <h4 className="mb-4 font-medium">{dept.department}</h4>
                   <div className="space-y-3 text-sm">
                     <div className="flex justify-between">
                       <span className="text-gray-600">Interns</span>
@@ -286,7 +289,7 @@ export function AnalyticsPage() {
             </CardHeader>
             <CardContent>
               <ResponsiveContainer width="100%" height={400}>
-                <BarChart data={hourlyDistribution}>
+                <BarChart data={data.hourlyDistribution}>
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="hour" />
                   <YAxis />

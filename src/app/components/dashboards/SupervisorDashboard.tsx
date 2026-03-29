@@ -1,110 +1,116 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { useAuth } from '@/app/contexts/AuthContext';
+import { useNavigation } from '@/app/contexts/NavigationContext';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/app/components/ui/card';
 import { Badge } from '@/app/components/ui/badge';
 import { Button } from '@/app/components/ui/button';
 import { Progress } from '@/app/components/ui/progress';
 import { Avatar, AvatarFallback } from '@/app/components/ui/avatar';
-import { Users, CheckCircle2, Clock, FileText, TrendingUp, AlertTriangle } from 'lucide-react';
+import { Users, CheckCircle2, Clock, TrendingUp, AlertTriangle, Loader2 } from 'lucide-react';
+import { apiRequest } from '@/lib/api';
+
+interface SupervisorIntern {
+  id: number;
+  name: string;
+  status: string;
+  hoursCompleted: number;
+  totalHours: number;
+  tasksCompleted: number;
+  pendingTasks: number;
+  attendance: number;
+  schedule: {
+    day: string;
+    label: string;
+    startTime: string | null;
+    endTime: string | null;
+    isActive: boolean;
+  } | null;
+  scheduleStatus: {
+    code: 'early' | 'on-time' | 'late' | 'missed' | 'no-schedule';
+    label: string;
+    detail: string;
+  };
+}
+
+interface SupervisorDashboardData {
+  stats: {
+    activeInterns: number;
+    tasksCompleted: number;
+    avgPerformance: number;
+  };
+  interns: SupervisorIntern[];
+  scheduleAlerts: Array<{ id: number; name: string; detail: string; status: string }>;
+  upcomingDeadlines: Array<{ id: number; task: string; intern: string; deadline: string | null }>;
+}
 
 export function SupervisorDashboard() {
   const { user } = useAuth();
+  const { navigate } = useNavigation();
+  const [data, setData] = useState<SupervisorDashboardData | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
-  // Mock data
-  const interns = [
-    { 
-      id: 1, 
-      name: 'John Intern', 
-      status: 'active', 
-      hoursCompleted: 156.5, 
-      totalHours: 200,
-      tasksCompleted: 24,
-      pendingTasks: 6,
-      attendance: 95
-    },
-    { 
-      id: 2, 
-      name: 'Sarah Lee', 
-      status: 'active', 
-      hoursCompleted: 142.0, 
-      totalHours: 200,
-      tasksCompleted: 18,
-      pendingTasks: 4,
-      attendance: 92
-    },
-    { 
-      id: 3, 
-      name: 'Mike Johnson', 
-      status: 'active', 
-      hoursCompleted: 168.5, 
-      totalHours: 200,
-      tasksCompleted: 31,
-      pendingTasks: 3,
-      attendance: 98
-    },
-    { 
-      id: 4, 
-      name: 'Emma Davis', 
-      status: 'active', 
-      hoursCompleted: 134.0, 
-      totalHours: 200,
-      tasksCompleted: 15,
-      pendingTasks: 8,
-      attendance: 88
-    },
-  ];
+  useEffect(() => {
+    const loadDashboard = async () => {
+      try {
+        const response = await apiRequest<SupervisorDashboardData>('/dashboard/overview');
+        setData(response);
+      } finally {
+        setIsLoading(false);
+      }
+    };
 
-  const pendingReports = [
-    { id: 1, intern: 'John Intern', type: 'Daily', date: '2026-01-30' },
-    { id: 2, intern: 'Sarah Lee', type: 'Weekly', date: '2026-01-27' },
-    { id: 3, intern: 'Mike Johnson', type: 'Daily', date: '2026-01-31' },
-  ];
+    loadDashboard();
+  }, []);
 
-  const upcomingDeadlines = [
-    { task: 'Complete project documentation', intern: 'John Intern', deadline: '2026-02-05' },
-    { task: 'Review codebase for bugs', intern: 'John Intern', deadline: '2026-02-03' },
-    { task: 'Database optimization', intern: 'Sarah Lee', deadline: '2026-02-08' },
-  ];
-
-  const stats = [
-    { label: 'Active Interns', value: interns.length, icon: Users, color: 'text-purple-600' },
-    { label: 'Tasks Completed', value: interns.reduce((sum, i) => sum + i.tasksCompleted, 0), icon: CheckCircle2, color: 'text-green-600' },
-    { label: 'Pending Reports', value: pendingReports.length, icon: FileText, color: 'text-yellow-600' },
-    { label: 'Avg. Performance', value: '94%', icon: TrendingUp, color: 'text-purple-600' },
-  ];
-
-  const getInitials = (name: string) => {
-    return name
+  const getInitials = (name: string) =>
+    name
       .split(' ')
-      .map(n => n[0])
+      .map((part) => part[0])
       .join('')
       .toUpperCase();
-  };
+
+  if (isLoading || !data) {
+    return (
+      <div className="flex min-h-[320px] items-center justify-center text-sm text-muted-foreground">
+        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+        Loading dashboard...
+      </div>
+    );
+  }
+
+  const stats = [
+    { label: 'Active Interns', value: data.stats.activeInterns, icon: Users, color: 'text-purple-600' },
+    { label: 'Tasks Completed', value: data.stats.tasksCompleted, icon: CheckCircle2, color: 'text-green-600' },
+    { label: 'Avg. Performance', value: `${data.stats.avgPerformance}%`, icon: TrendingUp, color: 'text-purple-600' },
+  ];
+
+  const alertIntern = data.interns.reduce<SupervisorIntern | null>((current, intern) => {
+    if (!current) return intern;
+    return intern.pendingTasks > current.pendingTasks ? intern : current;
+  }, null);
 
   return (
     <div className="p-6 space-y-6">
-      {/* Header */}
       <div>
         <h1 className="text-3xl font-semibold">Supervisor Dashboard</h1>
-        <p className="text-gray-600 mt-1">
+        <p className="mt-1 text-gray-600">
           {user?.department ? `${user.department} Department - ` : ''}Monitor and manage your team's progress
         </p>
       </div>
 
-      {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        {stats.map((stat, index) => {
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+        {stats.map((stat) => {
           const Icon = stat.icon;
           return (
-            <Card key={index}>
+            <Card key={stat.label}>
               <CardContent className="p-6">
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm text-gray-600">{stat.label}</p>
-                    <p className="text-3xl font-semibold mt-2">{stat.value}</p>
+                    <p className="mt-2 text-3xl font-semibold">{stat.value}</p>
                   </div>
-                  <div className={`p-3 rounded-full bg-gray-50 ${stat.color}`}>
-                    <Icon className="w-6 h-6" />
+                  <div className={`rounded-full bg-gray-50 p-3 ${stat.color}`}>
+                    <Icon className="h-6 w-6" />
                   </div>
                 </div>
               </CardContent>
@@ -113,9 +119,8 @@ export function SupervisorDashboard() {
         })}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Intern Overview */}
-        <div className="lg:col-span-2 space-y-6">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+        <div className="space-y-6 lg:col-span-2">
           <Card>
             <CardHeader>
               <div className="flex items-center justify-between">
@@ -123,32 +128,49 @@ export function SupervisorDashboard() {
                   <CardTitle>Intern Overview</CardTitle>
                   <CardDescription>Monitor individual intern progress</CardDescription>
                 </div>
-                <Button variant="outline" size="sm">View All</Button>
+                <Button variant="outline" size="sm" onClick={() => navigate('tasks')}>View All</Button>
               </div>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {interns.map((intern) => (
-                  <div key={intern.id} className="p-4 border rounded-lg hover:bg-gray-50 transition-colors">
+                {data.interns.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">No active interns yet.</p>
+                ) : data.interns.map((intern) => (
+                  <div key={intern.id} className="rounded-lg border p-4 transition-colors hover:bg-gray-50">
                     <div className="flex items-start gap-4">
                       <Avatar>
                         <AvatarFallback>{getInitials(intern.name)}</AvatarFallback>
                       </Avatar>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center justify-between mb-2">
+                      <div className="min-w-0 flex-1">
+                        <div className="mb-2 flex items-center justify-between">
                           <div>
                             <h4 className="font-medium">{intern.name}</h4>
                             <p className="text-sm text-gray-600">
                               {intern.tasksCompleted} completed, {intern.pendingTasks} pending
                             </p>
+                            <p className="mt-1 text-xs text-muted-foreground">
+                              {intern.schedule?.isActive && intern.schedule.startTime && intern.schedule.endTime
+                                ? `Today's schedule: ${intern.schedule.startTime} - ${intern.schedule.endTime}`
+                                : 'No schedule set today'}
+                            </p>
                           </div>
-                          <Badge variant="default">Active</Badge>
+                          <Badge
+                            variant={
+                              intern.scheduleStatus.code === 'late' || intern.scheduleStatus.code === 'missed'
+                                ? 'destructive'
+                                : intern.scheduleStatus.code === 'on-time'
+                                  ? 'default'
+                                  : 'secondary'
+                            }
+                          >
+                            {intern.scheduleStatus.label}
+                          </Badge>
                         </div>
                         <div className="space-y-2">
                           <div>
-                            <div className="flex items-center justify-between text-sm mb-1">
+                            <div className="mb-1 flex items-center justify-between text-sm">
                               <span className="text-gray-600">Hours Progress</span>
-                              <span className="font-medium">{intern.hoursCompleted}/{intern.totalHours} hrs</span>
+                              <span className="font-medium">{intern.hoursCompleted.toFixed(1)}/{intern.totalHours} hrs</span>
                             </div>
                             <Progress value={(intern.hoursCompleted / intern.totalHours) * 100} className="h-2" />
                           </div>
@@ -165,29 +187,25 @@ export function SupervisorDashboard() {
             </CardContent>
           </Card>
 
-          {/* Upcoming Deadlines */}
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <Clock className="w-5 h-5" />
+                <Clock className="h-5 w-5" />
                 Upcoming Deadlines
               </CardTitle>
             </CardHeader>
             <CardContent>
               <div className="space-y-3">
-                {upcomingDeadlines.map((item, index) => (
-                  <div key={index} className="flex items-center justify-between p-3 border rounded-lg">
+                {data.upcomingDeadlines.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">No upcoming deadlines.</p>
+                ) : data.upcomingDeadlines.map((item) => (
+                  <div key={item.id} className="flex items-center justify-between rounded-lg border p-3">
                     <div className="flex-1">
-                      <h4 className="font-medium text-sm">{item.task}</h4>
-                      <p className="text-xs text-gray-600 mt-1">{item.intern}</p>
+                      <h4 className="text-sm font-medium">{item.task}</h4>
+                      <p className="mt-1 text-xs text-gray-600">{item.intern}</p>
                     </div>
                     <div className="text-right">
-                      <p className="text-sm font-medium">
-                        {new Date(item.deadline).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                      </p>
-                      <p className="text-xs text-gray-600">
-                        {Math.ceil((new Date(item.deadline).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24))} days
-                      </p>
+                      <p className="text-sm font-medium">{item.deadline ? new Date(item.deadline).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : 'No deadline'}</p>
                     </div>
                   </div>
                 ))}
@@ -196,78 +214,46 @@ export function SupervisorDashboard() {
           </Card>
         </div>
 
-        {/* Right Column */}
         <div className="space-y-6">
-          {/* Pending Reports */}
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <FileText className="w-5 h-5" />
-                Pending Reports
-              </CardTitle>
-              <CardDescription>Reports awaiting review</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                {pendingReports.map((report) => (
-                  <div key={report.id} className="p-3 border rounded-lg hover:bg-gray-50 transition-colors cursor-pointer">
-                    <div className="flex items-start justify-between mb-2">
-                      <div>
-                        <h4 className="font-medium text-sm">{report.intern}</h4>
-                        <p className="text-xs text-gray-600">{report.type} Report</p>
-                      </div>
-                      <Badge variant="secondary" className="text-xs">Pending</Badge>
-                    </div>
-                    <p className="text-xs text-gray-600">
-                      {new Date(report.date).toLocaleDateString()}
-                    </p>
-                  </div>
-                ))}
-              </div>
-              <Button variant="outline" className="w-full mt-4">
-                Review All Reports
-              </Button>
-            </CardContent>
-          </Card>
-
-          {/* Alerts & Notifications */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <AlertTriangle className="w-5 h-5 text-yellow-600" />
+                <AlertTriangle className="h-5 w-5 text-yellow-600" />
                 Alerts
               </CardTitle>
             </CardHeader>
             <CardContent>
               <div className="space-y-3">
-                <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-                  <p className="text-sm font-medium text-yellow-900">Low Attendance</p>
-                  <p className="text-xs text-yellow-700 mt-1">Emma Davis has 88% attendance rate</p>
-                </div>
-                <div className="p-3 bg-purple-50 border border-purple-200 rounded-lg">
-                  <p className="text-sm font-medium text-purple-900">Pending Tasks</p>
-                  <p className="text-xs text-purple-700 mt-1">Emma Davis has 8 pending tasks</p>
-                </div>
+                {data.scheduleAlerts.length > 0 && data.scheduleAlerts.map((alert) => (
+                  <div key={alert.id} className="rounded-lg border border-red-200 bg-red-50 p-3">
+                    <p className="text-sm font-medium text-red-900">{alert.name} is {alert.status.toLowerCase()}</p>
+                    <p className="mt-1 text-xs text-red-700">{alert.detail}</p>
+                  </div>
+                ))}
+                {alertIntern && (
+                  <div className="rounded-lg border border-yellow-200 bg-yellow-50 p-3">
+                    <p className="text-sm font-medium text-yellow-900">Pending Tasks</p>
+                    <p className="mt-1 text-xs text-yellow-700">{alertIntern.name} has {alertIntern.pendingTasks} pending tasks</p>
+                  </div>
+                )}
+                {data.scheduleAlerts.length === 0 && !alertIntern && (
+                  <p className="text-sm text-muted-foreground">No alerts right now.</p>
+                )}
               </div>
             </CardContent>
           </Card>
 
-          {/* Quick Actions */}
           <Card>
             <CardHeader>
               <CardTitle>Quick Actions</CardTitle>
             </CardHeader>
             <CardContent className="space-y-2">
-              <Button variant="outline" className="w-full justify-start">
-                <Users className="w-4 h-4 mr-2" />
+              <Button variant="outline" className="w-full justify-start" onClick={() => navigate('tasks')}>
+                <Users className="mr-2 h-4 w-4" />
                 Assign New Task
               </Button>
-              <Button variant="outline" className="w-full justify-start">
-                <FileText className="w-4 h-4 mr-2" />
-                Review Reports
-              </Button>
-              <Button variant="outline" className="w-full justify-start">
-                <TrendingUp className="w-4 h-4 mr-2" />
+              <Button variant="outline" className="w-full justify-start" onClick={() => navigate('analytics')}>
+                <TrendingUp className="mr-2 h-4 w-4" />
                 View Analytics
               </Button>
             </CardContent>

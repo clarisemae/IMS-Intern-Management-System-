@@ -113,10 +113,10 @@ export function LoginPage() {
               </Button>
             </form>
             <div className="rounded-2xl border bg-muted/40 p-4">
-              <p className="text-sm font-medium">Supabase sign-in</p>
+              <p className="text-sm font-medium">Local API sign-in</p>
               <div className="mt-3 space-y-2 text-sm text-muted-foreground">
-                <p>Use an email and password that already exist in your Supabase Auth users.</p>
-                <p className="pt-1 text-xs">Role-based dashboard access will use the user's `role` metadata when available.</p>
+                <p>Use an email and password that exist in your local MariaDB `users` table.</p>
+                <p className="pt-1 text-xs">Role-based dashboard access now comes from your Express API instead of Supabase metadata.</p>
               </div>
             </div>
           </CardContent>

@@ -15,10 +15,11 @@
 
     "esModuleInterop": true,
     "allowSyntheticDefaultImports": true,
+    "types": ["node"],
 
     "strict": false,
     "skipLibCheck": true
   },
-  "include": ["src"]
+  "include": ["src", "server"]
 }
 

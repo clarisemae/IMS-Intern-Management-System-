@@ -1,65 +1,151 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { useAuth } from '@/app/contexts/AuthContext';
+import { useNavigation } from '@/app/contexts/NavigationContext';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/app/components/ui/card';
 import { Badge } from '@/app/components/ui/badge';
 import { Button } from '@/app/components/ui/button';
-import { Clock, ListTodo, FileText, Bell, CheckCircle2, AlertCircle, Timer } from 'lucide-react';
+import { Clock, ListTodo, FileText, Bell, CheckCircle2, AlertCircle, Timer, Loader2 } from 'lucide-react';
 import { Progress } from '@/app/components/ui/progress';
+import { apiRequest } from '@/lib/api';
+
+interface DashboardTask {
+  id: number;
+  title: string;
+  deadline: string | null;
+  priority: 'low' | 'medium' | 'high';
+  status: 'pending' | 'in-progress' | 'completed';
+}
+
+interface DashboardNotification {
+  id: number;
+  message: string;
+  time: string;
+}
+
+interface ScheduleEntry {
+  day: string;
+  label: string;
+  startTime: string | null;
+  endTime: string | null;
+  isActive: boolean;
+}
+
+interface ScheduleStatus {
+  code: 'early' | 'on-time' | 'late' | 'missed' | 'no-schedule';
+  label: string;
+  detail: string;
+}
+
+interface InternDashboardData {
+  attendance: {
+    status: 'clocked-in' | 'clocked-out';
+    date: string;
+    timeIn: string | null;
+    timeOut: string | null;
+    totalHours: number;
+    progressPercent: number;
+    schedule: ScheduleEntry | null;
+    scheduleStatus: ScheduleStatus;
+  };
+  stats: {
+    hoursCompleted: number;
+    tasksCompleted: number;
+    pendingTasks: number;
+    hoursThisWeek: number;
+  };
+  tasks: DashboardTask[];
+  notifications: DashboardNotification[];
+}
+
+function formatTime(value: string | null) {
+  if (!value) return '--:--';
+  return new Date(value).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+}
+
+function getPrimaryAction(data: InternDashboardData) {
+  const attendanceCompleted = Boolean(data.attendance.timeIn && data.attendance.timeOut);
+  const hasReportReminder = data.notifications.some((notification) =>
+    notification.message.toLowerCase().includes('report'),
+  );
+
+  if (attendanceCompleted && hasReportReminder) {
+    return { label: 'Submit Daily Report', page: 'attendance', variant: 'default' as const, icon: FileText };
+  }
+
+  if (attendanceCompleted) {
+    return { label: 'Attendance Completed', page: 'attendance', variant: 'secondary' as const, icon: CheckCircle2 };
+  }
+
+  if (data.attendance.status === 'clocked-in') {
+    return { label: 'Clock Out', page: 'attendance', variant: 'default' as const, icon: Clock };
+  }
+
+  return { label: 'Clock In', page: 'attendance', variant: 'default' as const, icon: Clock };
+}
 
 export function InternDashboard() {
   const { user } = useAuth();
+  const { navigate } = useNavigation();
+  const [data, setData] = useState<InternDashboardData | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
-  // Mock data
-  const attendance = {
-    status: 'clocked-in',
-    timeIn: '09:00 AM',
-    timeOut: null,
-    totalHours: 156.5,
-  };
+  useEffect(() => {
+    const loadDashboard = async () => {
+      try {
+        const response = await apiRequest<InternDashboardData>('/dashboard/overview');
+        setData(response);
+      } finally {
+        setIsLoading(false);
+      }
+    };
 
-  const tasks = [
-    { id: 1, title: 'Complete project documentation', deadline: '2026-02-05', priority: 'high', status: 'in-progress' },
-    { id: 2, title: 'Review codebase for bugs', deadline: '2026-02-03', priority: 'medium', status: 'pending' },
-    { id: 3, title: 'Attend team meeting', deadline: '2026-02-01', priority: 'low', status: 'pending' },
-  ];
+    loadDashboard();
+  }, []);
 
-  const notifications = [
-    { id: 1, message: 'New task assigned: Complete project documentation', time: '2 hours ago' },
-    { id: 2, message: 'Supervisor commented on your report', time: '5 hours ago' },
-    { id: 3, message: 'Weekly report due tomorrow', time: '1 day ago' },
-  ];
+  if (isLoading || !data) {
+    return (
+      <div className="flex min-h-[320px] items-center justify-center text-sm text-muted-foreground">
+        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+        Loading dashboard...
+      </div>
+    );
+  }
 
   const stats = [
-    { label: 'Hours Completed', value: '156.5', icon: Clock, color: 'text-purple-600' },
-    { label: 'Tasks Completed', value: '24', icon: CheckCircle2, color: 'text-green-600' },
-    { label: 'Pending Tasks', value: '6', icon: AlertCircle, color: 'text-yellow-600' },
-    { label: 'Hours This Week', value: '38', icon: Timer, color: 'text-purple-600' },
+    { label: 'Hours Completed', value: data.stats.hoursCompleted.toFixed(1), icon: Clock, color: 'text-purple-600' },
+    { label: 'Tasks Completed', value: String(data.stats.tasksCompleted), icon: CheckCircle2, color: 'text-green-600' },
+    { label: 'Pending Tasks', value: String(data.stats.pendingTasks), icon: AlertCircle, color: 'text-yellow-600' },
+    { label: 'Hours This Week', value: data.stats.hoursThisWeek.toFixed(1), icon: Timer, color: 'text-purple-600' },
   ];
+  const primaryAction = getPrimaryAction(data);
+  const PrimaryActionIcon = primaryAction.icon;
+  const scheduleText = data.attendance.schedule?.isActive && data.attendance.schedule.startTime && data.attendance.schedule.endTime
+    ? `${data.attendance.schedule.label}: ${data.attendance.schedule.startTime} - ${data.attendance.schedule.endTime}`
+    : 'No schedule set for today';
+  const attendanceCompleted = Boolean(data.attendance.timeIn && data.attendance.timeOut);
 
   return (
     <div className="p-6 space-y-6">
-      {/* Header */}
       <div>
         <h1 className="text-3xl font-semibold">Welcome back, {user?.name}!</h1>
-        <p className="text-gray-600 mt-1">
+        <p className="mt-1 text-gray-600">
           {user?.department ? `${user.department} Department - ` : ''}Here's what's happening with your internship today
         </p>
       </div>
 
-      {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        {stats.map((stat, index) => {
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
+        {stats.map((stat) => {
           const Icon = stat.icon;
           return (
-            <Card key={index}>
+            <Card key={stat.label}>
               <CardContent className="p-6">
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm text-gray-600">{stat.label}</p>
-                    <p className="text-3xl font-semibold mt-2">{stat.value}</p>
+                    <p className="mt-2 text-3xl font-semibold">{stat.value}</p>
                   </div>
-                  <div className={`p-3 rounded-full bg-gray-50 ${stat.color}`}>
-                    <Icon className="w-6 h-6" />
+                  <div className={`rounded-full bg-gray-50 p-3 ${stat.color}`}>
+                    <Icon className="h-6 w-6" />
                   </div>
                 </div>
               </CardContent>
@@ -68,46 +154,65 @@ export function InternDashboard() {
         })}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Attendance Status */}
-        <div className="lg:col-span-2 space-y-6">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+        <div className="space-y-6 lg:col-span-2">
           <Card>
             <CardHeader>
               <div className="flex items-center justify-between">
                 <div>
                   <CardTitle>Today's Attendance</CardTitle>
-                  <CardDescription>Saturday, January 31, 2026</CardDescription>
+                  <CardDescription>{new Date(data.attendance.date).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}</CardDescription>
                 </div>
-                <Badge variant={attendance.status === 'clocked-in' ? 'default' : 'secondary'}>
-                  {attendance.status === 'clocked-in' ? 'Clocked In' : 'Clocked Out'}
+                <Badge variant={data.attendance.status === 'clocked-in' ? 'default' : 'secondary'}>
+                  {data.attendance.status === 'clocked-in' ? 'Clocked In' : 'Clocked Out'}
                 </Badge>
               </div>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="p-4 bg-green-50 rounded-lg">
-                  <p className="text-sm text-gray-600 mb-1">Time In</p>
-                  <p className="text-2xl font-semibold text-green-700">{attendance.timeIn}</p>
+              <div className="rounded-lg border bg-muted/30 p-4">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-medium">Today's Schedule</p>
+                    <p className="text-sm text-muted-foreground">{scheduleText}</p>
+                  </div>
+                  <Badge
+                    variant={
+                      data.attendance.scheduleStatus.code === 'late' || data.attendance.scheduleStatus.code === 'missed'
+                        ? 'destructive'
+                        : data.attendance.scheduleStatus.code === 'on-time'
+                          ? 'default'
+                          : 'secondary'
+                    }
+                  >
+                    {data.attendance.scheduleStatus.label}
+                  </Badge>
                 </div>
-                <div className="p-4 bg-gray-50 rounded-lg">
-                  <p className="text-sm text-gray-600 mb-1">Time Out</p>
-                  <p className="text-2xl font-semibold text-gray-700">
-                    {attendance.timeOut || '--:--'}
-                  </p>
+                {data.attendance.scheduleStatus.code !== 'no-schedule' && (
+                  <p className="mt-2 text-xs text-muted-foreground">{data.attendance.scheduleStatus.detail}</p>
+                )}
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="rounded-lg bg-green-50 p-4">
+                  <p className="mb-1 text-sm text-gray-600">Time In</p>
+                  <p className="text-2xl font-semibold text-green-700">{formatTime(data.attendance.timeIn)}</p>
+                </div>
+                <div className="rounded-lg bg-gray-50 p-4">
+                  <p className="mb-1 text-sm text-gray-600">Time Out</p>
+                  <p className="text-2xl font-semibold text-gray-700">{formatTime(data.attendance.timeOut)}</p>
                 </div>
               </div>
-              <div className="pt-4 border-t">
-                <div className="flex items-center justify-between mb-2">
+              <div className="border-t pt-4">
+                <div className="mb-2 flex items-center justify-between">
                   <p className="text-sm text-gray-600">Total Hours Rendered</p>
-                  <p className="text-sm font-medium">{attendance.totalHours} hrs</p>
+                  <p className="text-sm font-medium">{data.attendance.totalHours.toFixed(1)} hrs</p>
                 </div>
-                <Progress value={78} className="h-2" />
-                <p className="text-xs text-gray-500 mt-2">78% of required 200 hours completed</p>
+                <Progress value={data.attendance.progressPercent} className="h-2" />
+                <p className="mt-2 text-xs text-gray-500">{data.attendance.progressPercent}% of required 200 hours completed</p>
               </div>
             </CardContent>
           </Card>
 
-          {/* Assigned Tasks */}
           <Card>
             <CardHeader>
               <div className="flex items-center justify-between">
@@ -115,28 +220,39 @@ export function InternDashboard() {
                   <CardTitle>Assigned Tasks</CardTitle>
                   <CardDescription>Your current workload</CardDescription>
                 </div>
-                <Button variant="outline" size="sm">View All</Button>
+                <Button variant="outline" size="sm" onClick={() => navigate('tasks')}>View All</Button>
               </div>
             </CardHeader>
             <CardContent>
               <div className="space-y-3">
-                {tasks.map((task) => (
-                  <div key={task.id} className="p-4 border rounded-lg hover:bg-gray-50 transition-colors">
-                    <div className="flex items-start justify-between mb-2">
+                {data.tasks.length === 0 ? (
+                  <div className="rounded-2xl border border-dashed bg-muted/20 px-6 py-10 text-center">
+                    <ListTodo className="mx-auto mb-3 h-10 w-10 text-muted-foreground/50" />
+                    <p className="text-sm font-medium">No tasks assigned yet</p>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      Your supervisor has not assigned any tasks for today yet.
+                    </p>
+                    <Button variant="outline" size="sm" className="mt-4" onClick={() => navigate('tasks')}>
+                      Check Tasks
+                    </Button>
+                  </div>
+                ) : data.tasks.map((task) => (
+                  <div key={task.id} className="rounded-lg border p-4 transition-colors hover:bg-gray-50">
+                    <div className="mb-2 flex items-start justify-between">
                       <div className="flex-1">
                         <h4 className="font-medium">{task.title}</h4>
-                        <div className="flex items-center gap-2 mt-2">
+                        <div className="mt-2 flex items-center gap-2">
                           <Badge variant={task.priority === 'high' ? 'destructive' : task.priority === 'medium' ? 'default' : 'secondary'}>
                             {task.priority}
                           </Badge>
                           <Badge variant="outline">
-                            {task.status === 'in-progress' ? 'In Progress' : 'Pending'}
+                            {task.status === 'in-progress' ? 'In Progress' : task.status.charAt(0).toUpperCase() + task.status.slice(1)}
                           </Badge>
                         </div>
                       </div>
                       <div className="text-right">
                         <p className="text-sm text-gray-600">Due</p>
-                        <p className="text-sm font-medium">{new Date(task.deadline).toLocaleDateString()}</p>
+                        <p className="text-sm font-medium">{task.deadline ? new Date(task.deadline).toLocaleDateString() : 'No deadline'}</p>
                       </div>
                     </div>
                   </div>
@@ -146,44 +262,52 @@ export function InternDashboard() {
           </Card>
         </div>
 
-        {/* Recent Notifications */}
         <div className="space-y-6">
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <Bell className="w-5 h-5" />
+                <Bell className="h-5 w-5" />
                 Notifications
               </CardTitle>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {notifications.map((notification) => (
-                  <div key={notification.id} className="pb-4 border-b last:border-0 last:pb-0">
+                {data.notifications.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">No recent notifications.</p>
+                ) : data.notifications.map((notification) => (
+                  <div key={notification.id} className="border-b pb-4 last:border-0 last:pb-0">
                     <p className="text-sm">{notification.message}</p>
-                    <p className="text-xs text-gray-500 mt-1">{notification.time}</p>
+                    <p className="mt-1 text-xs text-gray-500">{notification.time}</p>
                   </div>
                 ))}
               </div>
             </CardContent>
           </Card>
 
-          {/* Quick Actions */}
           <Card>
             <CardHeader>
               <CardTitle>Quick Actions</CardTitle>
             </CardHeader>
             <CardContent className="space-y-2">
-              <Button variant="outline" className="w-full justify-start">
-                <Clock className="w-4 h-4 mr-2" />
-                Clock Out
+              <Button
+                variant={primaryAction.variant}
+                className="w-full justify-start"
+                onClick={() => navigate(primaryAction.page)}
+              >
+                <PrimaryActionIcon className="mr-2 h-4 w-4" />
+                {primaryAction.label}
               </Button>
-              <Button variant="outline" className="w-full justify-start">
-                <ListTodo className="w-4 h-4 mr-2" />
+              <Button variant="outline" className="w-full justify-start" onClick={() => navigate('tasks')}>
+                <ListTodo className="mr-2 h-4 w-4" />
                 View All Tasks
               </Button>
-              <Button variant="outline" className="w-full justify-start">
-                <FileText className="w-4 h-4 mr-2" />
-                Submit Report
+              <Button
+                variant={attendanceCompleted ? 'outline' : 'secondary'}
+                className="w-full justify-start"
+                onClick={() => navigate('attendance')}
+              >
+                <FileText className="mr-2 h-4 w-4" />
+                {attendanceCompleted ? 'Open Daily Report' : 'Daily Report'}
               </Button>
             </CardContent>
           </Card>

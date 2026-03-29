@@ -96,6 +96,27 @@ export function ProfilePage() {
                   />
                 </div>
               </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="birthdate">Birthdate</Label>
+                  <div className="relative">
+                    <Cake className="absolute left-3 top-3 w-4 h-4 text-gray-400" />
+                    <Input
+                      id="birthdate"
+                      type="date"
+                      className="pl-10"
+                      defaultValue={user?.birthdate ? String(user.birthdate).slice(0, 10) : ''}
+                    />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label>Age</Label>
+                  <div className="flex h-10 items-center rounded-md border bg-muted/30 px-3 text-sm text-gray-600">
+                    {user?.birthdate ? `${calculateAge(user.birthdate)} years old` : 'Not set'}
+                  </div>
+                </div>
+              </div>
               
               <div className="space-y-2">
                 <Label htmlFor="email">Email</Label>

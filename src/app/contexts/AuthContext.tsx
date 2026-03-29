@@ -1,11 +1,11 @@
 import React, { createContext, useContext, useEffect, useState, ReactNode } from "react";
-import type { Session } from "@supabase/supabase-js";
-import { supabase } from "@/lib/supabase";
+import { apiRequest } from "@/lib/api";
 
 export type UserRole = "intern" | "supervisor" | "admin";
+const TOKEN_STORAGE_KEY = "ims_auth_token";
 
 export interface User {
-  id: string;
+  id: number;
   name: string;
   email: string;
   role: UserRole;
@@ -23,45 +23,21 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-function toTitleCase(value: string) {
-  return value
-    .split(/[\s._-]+/)
-    .filter(Boolean)
-    .map((part) => part[0].toUpperCase() + part.slice(1))
-    .join(" ");
+interface AuthResponse {
+  token: string;
+  user: User;
 }
 
-function parseRole(role: unknown): UserRole {
-  if (role === "admin" || role === "supervisor" || role === "intern") {
-    return role;
-  }
-
-  return "intern";
+function getStoredToken() {
+  return window.localStorage.getItem(TOKEN_STORAGE_KEY);
 }
 
-function mapSessionToUser(session: Session | null): User | null {
-  const authUser = session?.user;
-  if (!authUser?.email) {
-    return null;
-  }
+function storeToken(token: string) {
+  window.localStorage.setItem(TOKEN_STORAGE_KEY, token);
+}
 
-  const metadata = authUser.user_metadata ?? {};
-  const appMetadata = authUser.app_metadata ?? {};
-  const emailName = authUser.email.split("@")[0];
-  const fullName =
-    metadata.full_name ??
-    metadata.name ??
-    metadata.display_name ??
-    toTitleCase(emailName);
-
-  return {
-    id: authUser.id,
-    name: fullName,
-    email: authUser.email,
-    role: parseRole(metadata.role ?? appMetadata.role),
-    department: metadata.department,
-    birthdate: metadata.birthdate,
-  };
+function clearToken() {
+  window.localStorage.removeItem(TOKEN_STORAGE_KEY);
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -72,44 +48,73 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     let mounted = true;
 
     const bootstrap = async () => {
-      const { data } = await supabase.auth.getSession();
-      if (mounted) {
-        setUser(mapSessionToUser(data.session));
-        setIsLoading(false);
+      const token = getStoredToken();
+
+      if (!token) {
+        if (mounted) {
+          setIsLoading(false);
+        }
+        return;
+      }
+
+      try {
+        const data = await apiRequest<{ user: User }>("/auth/me", {
+          method: "GET",
+          token,
+        });
+
+        if (mounted) {
+          setUser(data.user);
+        }
+      } catch (_error) {
+        clearToken();
+        if (mounted) {
+          setUser(null);
+        }
+      } finally {
+        if (mounted) {
+          setIsLoading(false);
+        }
       }
     };
 
     bootstrap();
 
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(mapSessionToUser(session));
-      setIsLoading(false);
-    });
-
     return () => {
       mounted = false;
-      subscription.unsubscribe();
     };
   }, []);
 
   const login = async (email: string, password: string): Promise<boolean> => {
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
+    try {
+      const data = await apiRequest<AuthResponse>("/auth/login", {
+        method: "POST",
+        body: JSON.stringify({ email, password }),
+      });
 
-    if (error || !data.session) {
+      storeToken(data.token);
+      setUser(data.user);
+      return true;
+    } catch (_error) {
+      clearToken();
+      setUser(null);
       return false;
     }
-
-    setUser(mapSessionToUser(data.session));
-    return true;
   };
 
   const logout = async () => {
-    await supabase.auth.signOut();
+    const token = getStoredToken();
+    if (token) {
+      try {
+        await apiRequest("/auth/logout", {
+          method: "POST",
+          token,
+        });
+      } catch (_error) {
+      }
+    }
+
+    clearToken();
     setUser(null);
   };
 

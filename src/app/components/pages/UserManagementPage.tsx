@@ -1,100 +1,277 @@
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/app/components/ui/card';
 import { Button } from '@/app/components/ui/button';
 import { Badge } from '@/app/components/ui/badge';
 import { Input } from '@/app/components/ui/input';
 import { Label } from '@/app/components/ui/label';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/app/components/ui/table';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/app/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/app/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/app/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/app/components/ui/tabs';
-import { UserPlus, Search, MoreVertical, Edit, Trash2 } from 'lucide-react';
+import { UserPlus, Search, MoreVertical, Edit, Trash2, Loader2 } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/app/components/ui/dropdown-menu';
+import { apiRequest } from '@/lib/api';
+
+type UserRole = 'intern' | 'supervisor' | 'admin';
+type UserStatus = 'active' | 'inactive';
+
+interface ScheduleEntry {
+  day: string;
+  label: string;
+  startTime: string | null;
+  endTime: string | null;
+  isActive: boolean;
+}
 
 interface User {
   id: number;
   name: string;
   email: string;
-  role: 'intern' | 'supervisor' | 'admin';
-  status: 'active' | 'inactive';
-  department?: string;
+  role: UserRole;
+  status: UserStatus;
+  department?: string | null;
   joinDate: string;
-  birthdate?: string;
+  birthdate?: string | null;
+  schedule?: ScheduleEntry[];
 }
 
+interface UserFormState {
+  name: string;
+  email: string;
+  role: UserRole;
+  status: UserStatus;
+  department: string;
+  birthdate: string;
+  password: string;
+  schedule: ScheduleEntry[];
+}
+
+const defaultSchedule: ScheduleEntry[] = [
+  { day: 'monday', label: 'Monday', startTime: '08:00', endTime: '17:00', isActive: true },
+  { day: 'tuesday', label: 'Tuesday', startTime: '08:00', endTime: '17:00', isActive: true },
+  { day: 'wednesday', label: 'Wednesday', startTime: '08:00', endTime: '17:00', isActive: true },
+  { day: 'thursday', label: 'Thursday', startTime: '08:00', endTime: '17:00', isActive: true },
+  { day: 'friday', label: 'Friday', startTime: '08:00', endTime: '17:00', isActive: true },
+  { day: 'saturday', label: 'Saturday', startTime: null, endTime: null, isActive: false },
+  { day: 'sunday', label: 'Sunday', startTime: null, endTime: null, isActive: false },
+];
+
+const initialFormState: UserFormState = {
+  name: '',
+  email: '',
+  role: 'intern',
+  status: 'active',
+  department: '',
+  birthdate: '',
+  password: '',
+  schedule: defaultSchedule,
+};
+
 export function UserManagementPage() {
+  const [users, setUsers] = useState<User[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const [editingUser, setEditingUser] = useState<User | null>(null);
+  const [formData, setFormData] = useState<UserFormState>(initialFormState);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
+  const [error, setError] = useState('');
 
-  // Mock users data
-  const users: User[] = [
-    { id: 1, name: 'John Intern', email: 'intern@regris.com', role: 'intern', status: 'active', department: 'Engineering', joinDate: '2025-08-15', birthdate: '1999-05-15' },
-    { id: 2, name: 'Sarah Lee', email: 'sarah.lee@regris.com', role: 'intern', status: 'active', department: 'Design', joinDate: '2025-09-01', birthdate: '2000-03-22' },
-    { id: 3, name: 'Mike Johnson', email: 'mike.j@regris.com', role: 'intern', status: 'active', department: 'Engineering', joinDate: '2025-08-20', birthdate: '1998-11-08' },
-    { id: 4, name: 'Emma Davis', email: 'emma.d@regris.com', role: 'intern', status: 'active', department: 'Marketing', joinDate: '2025-09-10', birthdate: '2001-07-30' },
-    { id: 5, name: 'Jane Supervisor', email: 'supervisor@regris.com', role: 'supervisor', status: 'active', department: 'Engineering', joinDate: '2023-01-15', birthdate: '1985-08-22' },
-    { id: 6, name: 'Robert Wilson', email: 'robert.w@regris.com', role: 'supervisor', status: 'active', department: 'Design', joinDate: '2022-06-01', birthdate: '1987-02-14' },
-    { id: 7, name: 'Admin User', email: 'admin@regris.com', role: 'admin', status: 'active', department: 'IT', joinDate: '2021-03-01', birthdate: '1980-03-10' },
-  ];
+  const loadUsers = async () => {
+    setIsLoading(true);
+    setError('');
+
+    try {
+      const data = await apiRequest<{ users: User[] }>('/users');
+      setUsers(data.users);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load users.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadUsers();
+  }, []);
+
+  const filteredUsers = useMemo(() => {
+    const query = searchQuery.trim().toLowerCase();
+
+    if (!query) {
+      return users;
+    }
+
+    return users.filter((user) =>
+      [
+        user.name,
+        user.email,
+        user.role,
+        user.status,
+        user.department ?? '',
+      ].some((value) => value.toLowerCase().includes(query)),
+    );
+  }, [searchQuery, users]);
 
   const filterUsersByRole = (role: string) => {
-    if (role === 'all') return users;
-    return users.filter(user => user.role === role);
+    if (role === 'all') {
+      return filteredUsers;
+    }
+
+    return filteredUsers.filter((user) => user.role === role);
   };
 
   const getRoleBadgeVariant = (role: string) => {
     switch (role) {
-      case 'admin': return 'default';
-      case 'supervisor': return 'secondary';
-      case 'intern': return 'outline';
-      default: return 'outline';
+      case 'admin':
+        return 'default';
+      case 'supervisor':
+        return 'secondary';
+      case 'intern':
+      default:
+        return 'outline';
     }
   };
 
-  const calculateAge = (birthdate: string) => {
-    const birth = new Date(birthdate);
-    const today = new Date();
-    let age = today.getFullYear() - birth.getFullYear();
-    const monthDiff = today.getMonth() - birth.getMonth();
-    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
-      age--;
+  const openCreateDialog = () => {
+    setEditingUser(null);
+    setFormData(initialFormState);
+    setError('');
+    setIsCreateDialogOpen(true);
+  };
+
+  const openEditDialog = (user: User) => {
+    setEditingUser(user);
+    setFormData({
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      status: user.status,
+      department: user.department ?? '',
+      birthdate: user.birthdate ? String(user.birthdate).slice(0, 10) : '',
+      password: '',
+      schedule: user.schedule?.length
+        ? user.schedule.map((entry) => ({ ...entry }))
+        : defaultSchedule.map((entry) => ({ ...entry })),
+    });
+    setError('');
+    setIsCreateDialogOpen(true);
+  };
+
+  const closeDialog = () => {
+    setIsCreateDialogOpen(false);
+    setEditingUser(null);
+    setFormData(initialFormState);
+    setError('');
+  };
+
+  const handleSubmit = async () => {
+    setIsSaving(true);
+    setError('');
+
+    try {
+      if (editingUser) {
+        await apiRequest(`/users/${editingUser.id}`, {
+          method: 'PUT',
+          body: JSON.stringify({
+            ...formData,
+            password: formData.password || undefined,
+          }),
+        });
+      } else {
+        await apiRequest('/users', {
+          method: 'POST',
+          body: JSON.stringify(formData),
+        });
+      }
+
+      closeDialog();
+      await loadUsers();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to save user.');
+    } finally {
+      setIsSaving(false);
     }
-    return age;
+  };
+
+  const handleDeleteUser = async (user: User) => {
+    const confirmed = window.confirm(`Delete ${user.name}? This cannot be undone.`);
+
+    if (!confirmed) {
+      return;
+    }
+
+    try {
+      await apiRequest(`/users/${user.id}`, { method: 'DELETE' });
+      await loadUsers();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to delete user.');
+    }
+  };
+
+  const handleToggleStatus = async (user: User) => {
+    try {
+      await apiRequest(`/users/${user.id}`, {
+        method: 'PUT',
+        body: JSON.stringify({
+          name: user.name,
+          email: user.email,
+          role: user.role,
+          status: user.status === 'active' ? 'inactive' : 'active',
+          department: user.department ?? '',
+          birthdate: user.birthdate ? String(user.birthdate).slice(0, 10) : '',
+        }),
+      });
+
+      await loadUsers();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to update user status.');
+    }
   };
 
   return (
     <div className="p-6 space-y-6">
-      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-semibold">User Management</h1>
-          <p className="text-gray-600 mt-1">Manage system users and permissions</p>
+          <p className="mt-1 text-gray-600">Manage system users and permissions</p>
         </div>
-        <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-          <DialogTrigger asChild>
-            <Button>
-              <UserPlus className="w-4 h-4 mr-2" />
-              Add User
-            </Button>
-          </DialogTrigger>
+        <Button onClick={openCreateDialog}>
+          <UserPlus className="mr-2 h-4 w-4" />
+          Add User
+        </Button>
+        <Dialog open={isCreateDialogOpen} onOpenChange={(open) => (!open ? closeDialog() : setIsCreateDialogOpen(true))}>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Add New User</DialogTitle>
-              <DialogDescription>Create a new user account</DialogDescription>
+              <DialogTitle>{editingUser ? 'Edit User' : 'Add New User'}</DialogTitle>
+              <DialogDescription>
+                {editingUser ? 'Update this user account.' : 'Create a new user account.'}
+              </DialogDescription>
             </DialogHeader>
             <div className="space-y-4 py-4">
               <div className="space-y-2">
                 <Label htmlFor="name">Full Name</Label>
-                <Input id="name" placeholder="Enter full name" />
+                <Input
+                  id="name"
+                  placeholder="Enter full name"
+                  value={formData.name}
+                  onChange={(e) => setFormData((current) => ({ ...current, name: e.target.value }))}
+                />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="email">Email</Label>
-                <Input id="email" type="email" placeholder="user@regris.com" />
+                <Input
+                  id="email"
+                  type="email"
+                  placeholder="user@regris.com"
+                  value={formData.email}
+                  onChange={(e) => setFormData((current) => ({ ...current, email: e.target.value }))}
+                />
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="role">Role</Label>
-                  <Select>
+                  <Select value={formData.role} onValueChange={(value: UserRole) => setFormData((current) => ({ ...current, role: value }))}>
                     <SelectTrigger>
                       <SelectValue placeholder="Select role" />
                     </SelectTrigger>
@@ -106,66 +283,143 @@ export function UserManagementPage() {
                   </Select>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="department">Department</Label>
-                  <Select>
+                  <Label htmlFor="status">Status</Label>
+                  <Select value={formData.status} onValueChange={(value: UserStatus) => setFormData((current) => ({ ...current, status: value }))}>
                     <SelectTrigger>
-                      <SelectValue placeholder="Select department" />
+                      <SelectValue placeholder="Select status" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="engineering">Engineering</SelectItem>
-                      <SelectItem value="design">Design</SelectItem>
-                      <SelectItem value="marketing">Marketing</SelectItem>
-                      <SelectItem value="it">IT</SelectItem>
+                      <SelectItem value="active">Active</SelectItem>
+                      <SelectItem value="inactive">Inactive</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="password">Temporary Password</Label>
-                <Input id="password" type="password" placeholder="Generate or enter password" />
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="department">Department</Label>
+                  <Input
+                    id="department"
+                    placeholder="Engineering"
+                    value={formData.department}
+                    onChange={(e) => setFormData((current) => ({ ...current, department: e.target.value }))}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="birthdate">Birthdate</Label>
+                  <Input
+                    id="birthdate"
+                    type="date"
+                    value={formData.birthdate}
+                    onChange={(e) => setFormData((current) => ({ ...current, birthdate: e.target.value }))}
+                  />
+                </div>
               </div>
+              <div className="space-y-2">
+                <Label htmlFor="password">{editingUser ? 'New Password (optional)' : 'Temporary Password'}</Label>
+                <Input
+                  id="password"
+                  type="password"
+                  placeholder={editingUser ? 'Leave blank to keep current password' : 'Enter a temporary password'}
+                  value={formData.password}
+                  onChange={(e) => setFormData((current) => ({ ...current, password: e.target.value }))}
+                />
+              </div>
+              {formData.role === 'intern' && (
+                <div className="space-y-3 rounded-xl border p-4">
+                  <div>
+                    <h3 className="font-medium">Weekly Schedule</h3>
+                    <p className="text-sm text-muted-foreground">Set the intern's daily start and end time.</p>
+                  </div>
+                  <div className="space-y-3">
+                    {formData.schedule.map((entry) => (
+                      <div key={entry.day} className="grid grid-cols-[120px_1fr_1fr] items-center gap-3">
+                        <Label>{entry.label}</Label>
+                        <Input
+                          type="time"
+                          value={entry.startTime ?? ''}
+                          onChange={(e) => setFormData((current) => ({
+                            ...current,
+                            schedule: current.schedule.map((item) => item.day === entry.day
+                              ? {
+                                  ...item,
+                                  startTime: e.target.value || null,
+                                  isActive: Boolean((e.target.value || item.endTime) && (item.endTime || e.target.value)),
+                                }
+                              : item),
+                          }))}
+                        />
+                        <Input
+                          type="time"
+                          value={entry.endTime ?? ''}
+                          onChange={(e) => setFormData((current) => ({
+                            ...current,
+                            schedule: current.schedule.map((item) => item.day === entry.day
+                              ? {
+                                  ...item,
+                                  endTime: e.target.value || null,
+                                  isActive: Boolean((item.startTime || e.target.value) && (e.target.value || item.startTime)),
+                                }
+                              : item),
+                          }))}
+                        />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {error && (
+                <p className="rounded-xl border border-destructive/20 bg-destructive/5 px-3 py-2 text-sm text-destructive">
+                  {error}
+                </p>
+              )}
             </div>
             <div className="flex justify-end gap-2">
-              <Button variant="outline" onClick={() => setIsCreateDialogOpen(false)}>
+              <Button variant="outline" onClick={closeDialog} disabled={isSaving}>
                 Cancel
               </Button>
-              <Button onClick={() => setIsCreateDialogOpen(false)}>
-                Create User
+              <Button onClick={handleSubmit} disabled={isSaving}>
+                {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                {editingUser ? 'Save Changes' : 'Create User'}
               </Button>
             </div>
           </DialogContent>
         </Dialog>
       </div>
 
-      {/* Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      {error && !isCreateDialogOpen && (
+        <p className="rounded-xl border border-destructive/20 bg-destructive/5 px-4 py-3 text-sm text-destructive">
+          {error}
+        </p>
+      )}
+
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
         <Card>
           <CardContent className="p-6">
             <p className="text-sm text-gray-600">Total Users</p>
-            <p className="text-3xl font-semibold mt-2">{users.length}</p>
+            <p className="mt-2 text-3xl font-semibold">{users.length}</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-6">
             <p className="text-sm text-gray-600">Interns</p>
-            <p className="text-3xl font-semibold mt-2">{users.filter(u => u.role === 'intern').length}</p>
+            <p className="mt-2 text-3xl font-semibold">{users.filter((user) => user.role === 'intern').length}</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-6">
             <p className="text-sm text-gray-600">Supervisors</p>
-            <p className="text-3xl font-semibold mt-2">{users.filter(u => u.role === 'supervisor').length}</p>
+            <p className="mt-2 text-3xl font-semibold">{users.filter((user) => user.role === 'supervisor').length}</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-6">
             <p className="text-sm text-gray-600">Admins</p>
-            <p className="text-3xl font-semibold mt-2">{users.filter(u => u.role === 'admin').length}</p>
+            <p className="mt-2 text-3xl font-semibold">{users.filter((user) => user.role === 'admin').length}</p>
           </CardContent>
         </Card>
       </div>
 
-      {/* User List */}
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between">
@@ -174,7 +428,7 @@ export function UserManagementPage() {
               <CardDescription>Manage all system users</CardDescription>
             </div>
             <div className="relative w-64">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
               <Input
                 placeholder="Search users..."
                 value={searchQuery}
@@ -185,100 +439,93 @@ export function UserManagementPage() {
           </div>
         </CardHeader>
         <CardContent>
-          <Tabs defaultValue="all">
-            <TabsList>
-              <TabsTrigger value="all">All Users</TabsTrigger>
-              <TabsTrigger value="intern">Interns</TabsTrigger>
-              <TabsTrigger value="supervisor">Supervisors</TabsTrigger>
-              <TabsTrigger value="admin">Admins</TabsTrigger>
-            </TabsList>
+          {isLoading ? (
+            <div className="flex min-h-48 items-center justify-center text-sm text-muted-foreground">
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              Loading users...
+            </div>
+          ) : (
+            <Tabs defaultValue="all">
+              <TabsList>
+                <TabsTrigger value="all">All Users</TabsTrigger>
+                <TabsTrigger value="intern">Interns</TabsTrigger>
+                <TabsTrigger value="supervisor">Supervisors</TabsTrigger>
+                <TabsTrigger value="admin">Admins</TabsTrigger>
+              </TabsList>
 
-            {['all', 'intern', 'supervisor', 'admin'].map((role) => (
-              <TabsContent key={role} value={role}>
-                <div className="rounded-lg border">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Name</TableHead>
-                        <TableHead>Birthdate / Age</TableHead>
-                        <TableHead>Email</TableHead>
-                        <TableHead>Role</TableHead>
-                        <TableHead>Department</TableHead>
-                        <TableHead>Status</TableHead>
-                        <TableHead>Join Date</TableHead>
-                        <TableHead className="text-right">Actions</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {filterUsersByRole(role).map((user) => (
-                        <TableRow key={user.id}>
-                          <TableCell className="font-medium">{user.name}</TableCell>
-                          <TableCell>
-                            {user.birthdate ? (
-                              <div className="space-y-0.5">
-                                <p className="text-sm">
-                                  {new Date(user.birthdate).toLocaleDateString('en-US', { 
-                                    month: 'short', 
-                                    day: 'numeric', 
-                                    year: 'numeric' 
-                                  })}
-                                </p>
-                                <p className="text-xs text-gray-500">
-                                  {calculateAge(user.birthdate)} years old
-                                </p>
-                              </div>
-                            ) : (
-                              <span className="text-gray-400">—</span>
-                            )}
-                          </TableCell>
-                          <TableCell>{user.email}</TableCell>
-                          <TableCell>
-                            <Badge variant={getRoleBadgeVariant(user.role)}>
-                              {user.role.charAt(0).toUpperCase() + user.role.slice(1)}
-                            </Badge>
-                          </TableCell>
-                          <TableCell>{user.department}</TableCell>
-                          <TableCell>
-                            <Badge variant={user.status === 'active' ? 'default' : 'secondary'}>
-                              {user.status.charAt(0).toUpperCase() + user.status.slice(1)}
-                            </Badge>
-                          </TableCell>
-                          <TableCell>
-                            {new Date(user.joinDate).toLocaleDateString()}
-                          </TableCell>
-                          <TableCell className="text-right">
-                            <DropdownMenu>
-                              <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" size="sm">
-                                  <MoreVertical className="w-4 h-4" />
-                                </Button>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end">
-                                <DropdownMenuItem>
-                                  <Edit className="w-4 h-4 mr-2" />
-                                  Edit User
-                                </DropdownMenuItem>
-                                <DropdownMenuItem>
-                                  Reset Password
-                                </DropdownMenuItem>
-                                <DropdownMenuItem>
-                                  {user.status === 'active' ? 'Deactivate' : 'Activate'}
-                                </DropdownMenuItem>
-                                <DropdownMenuItem className="text-red-600">
-                                  <Trash2 className="w-4 h-4 mr-2" />
-                                  Delete User
-                                </DropdownMenuItem>
-                              </DropdownMenuContent>
-                            </DropdownMenu>
-                          </TableCell>
+              {['all', 'intern', 'supervisor', 'admin'].map((role) => (
+                <TabsContent key={role} value={role}>
+                  <div className="rounded-lg border">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Name</TableHead>
+                          <TableHead>Email</TableHead>
+                          <TableHead>Role</TableHead>
+                          <TableHead>Department</TableHead>
+                          <TableHead>Status</TableHead>
+                          <TableHead>Join Date</TableHead>
+                          <TableHead className="text-right">Actions</TableHead>
                         </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
-              </TabsContent>
-            ))}
-          </Tabs>
+                      </TableHeader>
+                      <TableBody>
+                        {filterUsersByRole(role).length === 0 ? (
+                          <TableRow>
+                            <TableCell colSpan={7} className="py-10 text-center text-sm text-muted-foreground">
+                              No users found for this filter.
+                            </TableCell>
+                          </TableRow>
+                        ) : (
+                          filterUsersByRole(role).map((user) => (
+                            <TableRow key={user.id}>
+                              <TableCell className="font-medium">{user.name}</TableCell>
+                              <TableCell>{user.email}</TableCell>
+                              <TableCell>
+                                <Badge variant={getRoleBadgeVariant(user.role)}>
+                                  {user.role.charAt(0).toUpperCase() + user.role.slice(1)}
+                                </Badge>
+                              </TableCell>
+                              <TableCell>{user.department || '-'}</TableCell>
+                              <TableCell>
+                                <Badge variant={user.status === 'active' ? 'default' : 'secondary'}>
+                                  {user.status.charAt(0).toUpperCase() + user.status.slice(1)}
+                                </Badge>
+                              </TableCell>
+                              <TableCell>
+                                {new Date(user.joinDate).toLocaleDateString()}
+                              </TableCell>
+                              <TableCell className="text-right">
+                                <DropdownMenu>
+                                  <DropdownMenuTrigger asChild>
+                                    <Button variant="ghost" size="sm">
+                                      <MoreVertical className="h-4 w-4" />
+                                    </Button>
+                                  </DropdownMenuTrigger>
+                                  <DropdownMenuContent align="end">
+                                    <DropdownMenuItem onClick={() => openEditDialog(user)}>
+                                      <Edit className="mr-2 h-4 w-4" />
+                                      Edit User
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem onClick={() => handleToggleStatus(user)}>
+                                      {user.status === 'active' ? 'Deactivate' : 'Activate'}
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem className="text-red-600" onClick={() => handleDeleteUser(user)}>
+                                      <Trash2 className="mr-2 h-4 w-4" />
+                                      Delete User
+                                    </DropdownMenuItem>
+                                  </DropdownMenuContent>
+                                </DropdownMenu>
+                              </TableCell>
+                            </TableRow>
+                          ))
+                        )}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </TabsContent>
+              ))}
+            </Tabs>
+          )}
         </CardContent>
       </Card>
     </div>
