@@ -22,7 +22,7 @@ interface AdminDashboardData {
   health: {
     attendanceRate: number;
     taskCompletionRate: number;
-    reportSubmissionRate: number;
+    activeUserRate: number;
   };
 }
 
@@ -54,10 +54,34 @@ export function AdminDashboard() {
   }
 
   const systemStats = [
-    { label: 'Total Users', value: String(data.systemStats.totalUsers), icon: Users, color: 'text-purple-600' },
-    { label: 'Active Interns', value: String(data.systemStats.activeInterns), icon: UserCheck, color: 'text-green-600' },
-    { label: 'Total Hours Logged', value: data.systemStats.totalHoursLogged.toFixed(1), icon: Clock, color: 'text-purple-600' },
-    { label: 'Pending Reports', value: String(data.systemStats.pendingReports), icon: FileText, color: 'text-yellow-600' },
+    {
+      label: 'Total Users',
+      value: String(data.systemStats.totalUsers),
+      helper: data.systemStats.totalUsers > 0 ? 'Accounts registered in the system' : 'No user accounts yet',
+      icon: Users,
+      color: 'text-purple-600',
+    },
+    {
+      label: 'Active Interns',
+      value: String(data.systemStats.activeInterns),
+      helper: data.systemStats.activeInterns > 0 ? 'Interns currently marked active' : 'No active interns yet',
+      icon: UserCheck,
+      color: 'text-green-600',
+    },
+    {
+      label: 'Total Hours Logged',
+      value: data.systemStats.totalHoursLogged.toFixed(1),
+      helper: data.systemStats.totalHoursLogged > 0 ? 'Attendance hours across the system' : 'No attendance hours logged yet',
+      icon: Clock,
+      color: 'text-purple-600',
+    },
+    {
+      label: 'Saved Logs',
+      value: String(data.systemStats.pendingReports),
+      helper: data.systemStats.pendingReports > 0 ? 'Daily logs saved by interns' : 'No daily logs saved yet',
+      icon: FileText,
+      color: 'text-yellow-600',
+    },
   ];
 
   return (
@@ -86,7 +110,10 @@ export function AdminDashboard() {
                   </div>
                 </div>
                 <div className="flex items-end justify-between">
-                  <p className="text-3xl font-semibold">{stat.value}</p>
+                  <div>
+                    <p className="text-3xl font-semibold">{stat.value}</p>
+                    <p className="mt-1 text-xs text-muted-foreground">{stat.helper}</p>
+                  </div>
                   <Badge variant="secondary" className="text-xs">
                     <TrendingUp className="mr-1 h-3 w-3" />
                     Live
@@ -105,15 +132,24 @@ export function AdminDashboard() {
             <CardDescription>Monthly hours logged</CardDescription>
           </CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <LineChart data={data.attendanceData}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="month" />
-                <YAxis />
-                <Tooltip />
-                <Line type="monotone" dataKey="hours" stroke="#3b82f6" strokeWidth={2} />
-              </LineChart>
-            </ResponsiveContainer>
+            {data.attendanceData.length === 0 ? (
+              <div className="flex h-[300px] items-center justify-center rounded-2xl border border-dashed bg-muted/20 text-center">
+                <div className="max-w-xs space-y-2">
+                  <p className="text-sm font-medium">No attendance trend data yet</p>
+                  <p className="text-sm text-muted-foreground">Monthly attendance activity will appear here once interns begin logging hours.</p>
+                </div>
+              </div>
+            ) : (
+              <ResponsiveContainer width="100%" height={300}>
+                <LineChart data={data.attendanceData}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="month" />
+                  <YAxis />
+                  <Tooltip />
+                  <Line type="monotone" dataKey="hours" stroke="#3b82f6" strokeWidth={2} />
+                </LineChart>
+              </ResponsiveContainer>
+            )}
           </CardContent>
         </Card>
 
@@ -123,16 +159,25 @@ export function AdminDashboard() {
             <CardDescription>Weekly task completion</CardDescription>
           </CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={data.taskCompletionData}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="week" />
-                <YAxis />
-                <Tooltip />
-                <Bar dataKey="completed" fill="#10b981" />
-                <Bar dataKey="pending" fill="#f59e0b" />
-              </BarChart>
-            </ResponsiveContainer>
+            {data.taskCompletionData.length === 0 ? (
+              <div className="flex h-[300px] items-center justify-center rounded-2xl border border-dashed bg-muted/20 text-center">
+                <div className="max-w-xs space-y-2">
+                  <p className="text-sm font-medium">No task activity yet</p>
+                  <p className="text-sm text-muted-foreground">Weekly task completion trends will show here once tasks are assigned and updated.</p>
+                </div>
+              </div>
+            ) : (
+              <ResponsiveContainer width="100%" height={300}>
+                <BarChart data={data.taskCompletionData}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="week" />
+                  <YAxis />
+                  <Tooltip />
+                  <Bar dataKey="completed" fill="#10b981" />
+                  <Bar dataKey="pending" fill="#f59e0b" />
+                </BarChart>
+              </ResponsiveContainer>
+            )}
           </CardContent>
         </Card>
       </div>
@@ -186,7 +231,11 @@ export function AdminDashboard() {
           <CardContent>
             <div className="space-y-4">
               {data.recentActivities.length === 0 ? (
-                <p className="text-sm text-muted-foreground">No recent activity yet.</p>
+                <div className="rounded-2xl border border-dashed bg-muted/20 px-6 py-10 text-center">
+                  <Activity className="mx-auto mb-3 h-10 w-10 text-muted-foreground/50" />
+                  <p className="text-sm font-medium">No recent activity yet</p>
+                  <p className="mt-1 text-sm text-muted-foreground">Saved logs, attendance actions, and other system updates will appear here as the team starts using the platform.</p>
+                </div>
               ) : data.recentActivities.map((activity) => (
                 <div key={activity.id} className="flex items-start gap-3 border-b pb-4 last:border-0 last:pb-0">
                   <div className="mt-2 h-2 w-2 rounded-full bg-purple-500" />
@@ -230,11 +279,11 @@ export function AdminDashboard() {
             </div>
             <div className="space-y-2">
               <div className="flex items-center justify-between text-sm">
-                <span className="text-gray-600">Report Submission</span>
-                <span className="font-medium">{data.health.reportSubmissionRate}%</span>
+                <span className="text-gray-600">Active Accounts</span>
+                <span className="font-medium">{data.health.activeUserRate}%</span>
               </div>
               <div className="h-2 overflow-hidden rounded-full bg-gray-100">
-                <div className="h-full bg-purple-500" style={{ width: `${data.health.reportSubmissionRate}%` }} />
+                <div className="h-full bg-purple-500" style={{ width: `${data.health.activeUserRate}%` }} />
               </div>
             </div>
           </div>

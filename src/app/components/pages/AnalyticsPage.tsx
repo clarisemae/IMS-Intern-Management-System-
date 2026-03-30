@@ -188,7 +188,7 @@ export function AnalyticsPage() {
                   <PolarRadiusAxis angle={90} domain={[0, 100]} />
                   <Radar name="Attendance" dataKey="attendance" stroke="#3b82f6" fill="#3b82f6" fillOpacity={0.3} />
                   <Radar name="Task Completion" dataKey="taskCompletion" stroke="#10b981" fill="#10b981" fillOpacity={0.3} />
-                  <Radar name="Report Quality" dataKey="reportQuality" stroke="#f59e0b" fill="#f59e0b" fillOpacity={0.3} />
+                  <Radar name="Log Submission" dataKey="reportQuality" stroke="#f59e0b" fill="#f59e0b" fillOpacity={0.3} />
                   <Tooltip />
                 </RadarChart>
               </ResponsiveContainer>
@@ -223,7 +223,7 @@ export function AnalyticsPage() {
                   </div>
                   <div className="space-y-2">
                     <div className="flex justify-between text-sm">
-                      <span className="text-gray-600">Report Quality</span>
+                      <span className="text-gray-600">Log Submission</span>
                       <span className="font-medium">{intern.reportQuality}%</span>
                     </div>
                     <div className="h-2 overflow-hidden rounded-full bg-gray-100">

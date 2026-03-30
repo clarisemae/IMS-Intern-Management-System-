@@ -31,7 +31,7 @@ interface ScheduleEntry {
 }
 
 interface ScheduleStatus {
-  code: 'early' | 'on-time' | 'late' | 'missed' | 'no-schedule';
+  code: 'early' | 'on-time' | 'grace' | 'late' | 'missed' | 'no-schedule';
   label: string;
   detail: string;
 }
@@ -62,14 +62,40 @@ function formatTime(value: string | null) {
   return new Date(value).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
 }
 
+function toMinutes(time: string | null) {
+  if (!time) return null;
+  const [hours, minutes] = time.split(':').map(Number);
+  if (Number.isNaN(hours) || Number.isNaN(minutes)) return null;
+  return (hours * 60) + minutes;
+}
+
+function isWithinScheduleWindow(schedule: ScheduleEntry | null) {
+  if (!schedule?.isActive) {
+    return true;
+  }
+
+  const startMinutes = toMinutes(schedule.startTime);
+  const endMinutes = toMinutes(schedule.endTime);
+
+  if (startMinutes == null || endMinutes == null) {
+    return true;
+  }
+
+  const now = new Date();
+  const nowMinutes = (now.getHours() * 60) + now.getMinutes();
+  return nowMinutes >= startMinutes && nowMinutes <= endMinutes;
+}
+
 function getPrimaryAction(data: InternDashboardData) {
   const attendanceCompleted = Boolean(data.attendance.timeIn && data.attendance.timeOut);
   const hasReportReminder = data.notifications.some((notification) =>
     notification.message.toLowerCase().includes('report'),
   );
+  const hasClockedInToday = Boolean(data.attendance.timeIn);
+  const withinScheduleWindow = isWithinScheduleWindow(data.attendance.schedule);
 
   if (attendanceCompleted && hasReportReminder) {
-    return { label: 'Submit Daily Report', page: 'attendance', variant: 'default' as const, icon: FileText };
+    return { label: 'Submit Daily Log', page: 'attendance', variant: 'default' as const, icon: FileText };
   }
 
   if (attendanceCompleted) {
@@ -78,6 +104,10 @@ function getPrimaryAction(data: InternDashboardData) {
 
   if (data.attendance.status === 'clocked-in') {
     return { label: 'Clock Out', page: 'attendance', variant: 'default' as const, icon: Clock };
+  }
+
+  if (!hasClockedInToday && !withinScheduleWindow) {
+    return { label: 'View Attendance', page: 'attendance', variant: 'outline' as const, icon: Clock };
   }
 
   return { label: 'Clock In', page: 'attendance', variant: 'default' as const, icon: Clock };
@@ -112,10 +142,34 @@ export function InternDashboard() {
   }
 
   const stats = [
-    { label: 'Hours Completed', value: data.stats.hoursCompleted.toFixed(1), icon: Clock, color: 'text-purple-600' },
-    { label: 'Tasks Completed', value: String(data.stats.tasksCompleted), icon: CheckCircle2, color: 'text-green-600' },
-    { label: 'Pending Tasks', value: String(data.stats.pendingTasks), icon: AlertCircle, color: 'text-yellow-600' },
-    { label: 'Hours This Week', value: data.stats.hoursThisWeek.toFixed(1), icon: Timer, color: 'text-purple-600' },
+    {
+      label: 'Hours Completed',
+      value: data.stats.hoursCompleted.toFixed(1),
+      helper: data.stats.hoursCompleted > 0 ? 'Rendered internship hours so far' : 'No rendered hours yet',
+      icon: Clock,
+      color: 'text-purple-600',
+    },
+    {
+      label: 'Tasks Completed',
+      value: String(data.stats.tasksCompleted),
+      helper: data.stats.tasksCompleted > 0 ? 'Finished assigned tasks' : 'No completed tasks yet',
+      icon: CheckCircle2,
+      color: 'text-green-600',
+    },
+    {
+      label: 'Pending Tasks',
+      value: String(data.stats.pendingTasks),
+      helper: data.stats.pendingTasks > 0 ? 'Tasks still waiting for action' : 'No pending tasks right now',
+      icon: AlertCircle,
+      color: 'text-yellow-600',
+    },
+    {
+      label: 'Hours This Week',
+      value: data.stats.hoursThisWeek.toFixed(1),
+      helper: data.stats.hoursThisWeek > 0 ? 'Hours logged this week' : 'No hours logged this week yet',
+      icon: Timer,
+      color: 'text-purple-600',
+    },
   ];
   const primaryAction = getPrimaryAction(data);
   const PrimaryActionIcon = primaryAction.icon;
@@ -143,6 +197,7 @@ export function InternDashboard() {
                   <div>
                     <p className="text-sm text-gray-600">{stat.label}</p>
                     <p className="mt-2 text-3xl font-semibold">{stat.value}</p>
+                    <p className="mt-1 text-xs text-muted-foreground">{stat.helper}</p>
                   </div>
                   <div className={`rounded-full bg-gray-50 p-3 ${stat.color}`}>
                     <Icon className="h-6 w-6" />
@@ -181,6 +236,8 @@ export function InternDashboard() {
                         ? 'destructive'
                         : data.attendance.scheduleStatus.code === 'on-time'
                           ? 'default'
+                          : data.attendance.scheduleStatus.code === 'grace'
+                            ? 'outline'
                           : 'secondary'
                     }
                   >
@@ -273,7 +330,13 @@ export function InternDashboard() {
             <CardContent>
               <div className="space-y-4">
                 {data.notifications.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">No recent notifications.</p>
+                  <div className="rounded-2xl border border-dashed bg-muted/20 px-5 py-8 text-center">
+                    <Bell className="mx-auto mb-3 h-8 w-8 text-muted-foreground/50" />
+                    <p className="text-sm font-medium">No notifications yet</p>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      Schedule reminders, late notices, and saved daily log updates will appear here.
+                    </p>
+                  </div>
                 ) : data.notifications.map((notification) => (
                   <div key={notification.id} className="border-b pb-4 last:border-0 last:pb-0">
                     <p className="text-sm">{notification.message}</p>
@@ -307,7 +370,7 @@ export function InternDashboard() {
                 onClick={() => navigate('attendance')}
               >
                 <FileText className="mr-2 h-4 w-4" />
-                {attendanceCompleted ? 'Open Daily Report' : 'Daily Report'}
+                {attendanceCompleted ? 'Open Daily Log' : 'Daily Log'}
               </Button>
             </CardContent>
           </Card>

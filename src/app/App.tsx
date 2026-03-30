@@ -1,7 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { AuthProvider, useAuth } from '@/app/contexts/AuthContext';
 import { NavigationProvider } from '@/app/contexts/NavigationContext';
+import { MessageNotificationsProvider } from '@/app/contexts/MessageNotificationsContext';
 import { Badge } from '@/app/components/ui/badge';
+import { Toaster } from '@/app/components/ui/sonner';
 import { LoginPage } from '@/app/components/LoginPage';
 import { Sidebar } from '@/app/components/Sidebar';
 import { InternDashboard } from '@/app/components/dashboards/InternDashboard';
@@ -92,25 +94,28 @@ function AppContent() {
     <div className="relative min-h-screen overflow-hidden bg-background">
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,_rgba(14,165,233,0.12),_transparent_28%),radial-gradient(circle_at_bottom_right,_rgba(15,23,42,0.08),_transparent_30%)]" />
       <NavigationProvider currentPage={currentPage} navigate={setCurrentPage}>
-        <div className="relative flex min-h-screen">
-          <Sidebar currentPage={currentPage} onNavigate={setCurrentPage} />
-          <main className="flex-1 overflow-y-auto">
-            <div className="border-b border-border/60 bg-background/80 px-6 py-4 backdrop-blur">
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">Intern Management Dashboard</p>
-                  <h1 className="text-xl font-semibold tracking-tight">Operations workspace</h1>
+        <MessageNotificationsProvider currentPage={currentPage} isAuthenticated={isAuthenticated}>
+          <div className="relative flex min-h-screen">
+            <Sidebar currentPage={currentPage} onNavigate={setCurrentPage} />
+            <main className="flex-1 overflow-y-auto">
+              <div className="border-b border-border/60 bg-background/80 px-6 py-4 backdrop-blur">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground">Intern Management Dashboard</p>
+                    <h1 className="text-xl font-semibold tracking-tight">Operations workspace</h1>
+                  </div>
+                  {user && (
+                    <Badge variant="secondary" className="rounded-full px-3 py-1 capitalize">
+                      {user.role} access
+                    </Badge>
+                  )}
                 </div>
-                {user && (
-                  <Badge variant="secondary" className="rounded-full px-3 py-1 capitalize">
-                    {user.role} access
-                  </Badge>
-                )}
               </div>
-            </div>
-            <div className="p-2 sm:p-4">{renderPage()}</div>
-          </main>
-        </div>
+              <div className="p-2 sm:p-4">{renderPage()}</div>
+            </main>
+          </div>
+          <Toaster position="top-right" richColors closeButton />
+        </MessageNotificationsProvider>
       </NavigationProvider>
     </div>
   );

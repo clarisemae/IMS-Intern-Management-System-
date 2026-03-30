@@ -24,12 +24,9 @@ function mapReportRow(row: any) {
     date: toDateOnly(row.report_date),
     content: row.content,
     imageData: row.image_data,
-    status: row.status === "needs_revision" ? "needs-revision" : row.status,
+    status: "submitted",
     submittedById: row.user_id,
     submittedBy: row.submitted_by_name,
-    reviewerId: row.reviewer_id,
-    reviewerName: row.reviewer_name,
-    comments: row.comments,
     createdAt: row.created_at,
   };
 }
@@ -45,13 +42,9 @@ async function getReportById(reportId: number) {
        r.content,
        r.image_data,
        r.status,
-       r.reviewer_id,
-       reviewer.full_name AS reviewer_name,
-       r.comments,
        r.created_at
      FROM reports r
      INNER JOIN users submitter ON submitter.id = r.user_id
-     LEFT JOIN users reviewer ON reviewer.id = r.reviewer_id
      WHERE r.id = ?
      LIMIT 1`,
     [reportId],
@@ -71,13 +64,9 @@ async function getExistingDailyReport(userId: number, date: string) {
        r.content,
        r.image_data,
        r.status,
-       r.reviewer_id,
-       reviewer.full_name AS reviewer_name,
-       r.comments,
        r.created_at
      FROM reports r
      INNER JOIN users submitter ON submitter.id = r.user_id
-     LEFT JOIN users reviewer ON reviewer.id = r.reviewer_id
      WHERE r.user_id = ? AND r.type = 'daily' AND r.report_date = ?
      ORDER BY r.id DESC
      LIMIT 1`,
@@ -132,16 +121,6 @@ function escapeHtml(value: string) {
 }
 
 function buildWordDocument(report: any) {
-  const statusLabel = report.status === "needs_revision" ? "Needs Revision" : report.status;
-  const reviewerSection = report.reviewer_name
-    ? `<p><strong>Reviewed By:</strong> ${escapeHtml(report.reviewer_name)}</p>`
-    : "";
-  const commentsSection = report.comments
-    ? `
-      <h2>Reviewer Comments</h2>
-      <p>${escapeHtml(report.comments).replaceAll("\n", "<br />")}</p>
-    `
-    : "";
   const imageSection = report.image_data
     ? `
       <h2>Attached Image</h2>
@@ -153,7 +132,7 @@ function buildWordDocument(report: any) {
     <html>
       <head>
         <meta charset="utf-8" />
-        <title>Daily Report</title>
+        <title>Daily Log</title>
         <style>
           body { font-family: Arial, sans-serif; margin: 32px; color: #111827; }
           h1 { margin-bottom: 8px; }
@@ -169,7 +148,7 @@ function buildWordDocument(report: any) {
         </style>
       </head>
       <body>
-        <h1>${escapeHtml(report.type === "daily" ? "Daily Report" : "Weekly Report")}</h1>
+        <h1>${escapeHtml(report.type === "daily" ? "Daily Log" : "Weekly Log")}</h1>
         <div class="meta">
           <p><strong>Intern:</strong> ${escapeHtml(report.submitted_by_name ?? "")}</p>
           <p><strong>Date:</strong> ${new Date(report.report_date).toLocaleDateString("en-US", {
@@ -177,13 +156,11 @@ function buildWordDocument(report: any) {
             month: "long",
             day: "numeric",
           })}</p>
-          <p><strong>Status:</strong> ${escapeHtml(statusLabel)}</p>
-          ${reviewerSection}
+          <p><strong>Saved As:</strong> Daily Attendance Log</p>
         </div>
         <h2>Activities</h2>
         <div class="content">${escapeHtml(report.content).replaceAll("\n", "<br />")}</div>
         ${imageSection}
-        ${commentsSection}
       </body>
     </html>
   `;
@@ -200,13 +177,9 @@ export async function getReports(req: Request, res: Response) {
       r.content,
       r.image_data,
       r.status,
-      r.reviewer_id,
-      reviewer.full_name AS reviewer_name,
-      r.comments,
       r.created_at
     FROM reports r
     INNER JOIN users submitter ON submitter.id = r.user_id
-    LEFT JOIN users reviewer ON reviewer.id = r.reviewer_id
   `;
   const params: number[] = [];
 
@@ -248,7 +221,7 @@ export async function createReport(req: Request, res: Response) {
     if (existingReport) {
       await db.execute(
         `UPDATE reports
-         SET content = ?, image_data = ?, status = 'pending', reviewer_id = NULL, comments = NULL
+         SET content = ?, image_data = ?, status = 'pending'
          WHERE id = ?`,
         [content, normalizedImage.value ?? null, existingReport.id],
       );
@@ -257,14 +230,14 @@ export async function createReport(req: Request, res: Response) {
 
       return res.json({
         report: mapReportRow(updatedExistingReport),
-        message: "An existing daily report for this date was updated.",
+        message: "An existing daily log for this date was updated.",
       });
     }
   }
 
   const [result] = await db.execute<ResultSetHeader>(
-    `INSERT INTO reports (user_id, type, report_date, content, image_data, status, reviewer_id, comments)
-     VALUES (?, ?, ?, ?, ?, 'pending', NULL, NULL)`,
+    `INSERT INTO reports (user_id, type, report_date, content, image_data, status)
+     VALUES (?, ?, ?, ?, ?, 'pending')`,
     [req.user.id, type, normalizedDate, content, normalizedImage.value ?? null],
   );
 
@@ -306,13 +279,13 @@ export async function updateReport(req: Request, res: Response) {
     const existingReport = await getExistingDailyReport(req.user.id, normalizedDate);
 
     if (existingReport && existingReport.id !== reportId) {
-      return res.status(400).json({ message: "A daily report already exists for this date." });
+      return res.status(400).json({ message: "A daily log already exists for this date." });
     }
   }
 
   await db.execute(
     `UPDATE reports
-     SET type = ?, report_date = ?, content = ?, image_data = ?, status = 'pending', reviewer_id = NULL, comments = NULL
+     SET type = ?, report_date = ?, content = ?, image_data = ?, status = 'pending'
      WHERE id = ?`,
     [type, normalizedDate, content, normalizedImage.value ?? null, reportId],
   );
@@ -320,42 +293,6 @@ export async function updateReport(req: Request, res: Response) {
   const updatedReport = await getReportById(reportId);
 
   return res.json({ report: mapReportRow(updatedReport) });
-}
-
-export async function reviewReport(req: Request, res: Response) {
-  const reportId = Number(req.params.id);
-  const { status, comments } = req.body ?? {};
-
-  if (!reportId) {
-    return res.status(400).json({ message: "A valid report id is required." });
-  }
-
-  if (!req.user || (req.user.role !== "supervisor" && req.user.role !== "admin")) {
-    return res.status(403).json({ message: "Only supervisors or admins can review reports." });
-  }
-
-  const normalizedStatus = status === "needs-revision" ? "needs_revision" : status;
-
-  if (!normalizedStatus || !["approved", "needs_revision"].includes(normalizedStatus)) {
-    return res.status(400).json({ message: "Review status must be approved or needs revision." });
-  }
-
-  const report = await getReportById(reportId);
-
-  if (!report) {
-    return res.status(404).json({ message: "Report not found." });
-  }
-
-  await db.execute(
-    `UPDATE reports
-     SET status = ?, reviewer_id = ?, comments = ?
-     WHERE id = ?`,
-    [normalizedStatus, req.user.id, comments || null, reportId],
-  );
-
-  const reviewedReport = await getReportById(reportId);
-
-  return res.json({ report: mapReportRow(reviewedReport) });
 }
 
 export async function getReport(req: Request, res: Response) {

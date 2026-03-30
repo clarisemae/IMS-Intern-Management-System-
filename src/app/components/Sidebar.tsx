@@ -1,5 +1,6 @@
 import React from 'react';
 import { useAuth, UserRole } from '@/app/contexts/AuthContext';
+import { useMessageNotifications } from '@/app/contexts/MessageNotificationsContext';
 import { Avatar, AvatarFallback } from '@/app/components/ui/avatar';
 import { Badge } from '@/app/components/ui/badge';
 import { Button } from '@/app/components/ui/button';
@@ -40,6 +41,7 @@ interface SidebarProps {
 
 export function Sidebar({ currentPage, onNavigate }: SidebarProps) {
   const { user, logout } = useAuth();
+  const { unreadCount, hasImportantUnread } = useMessageNotifications();
 
   const filteredMenuItems = menuItems.filter(item => 
     user && item.roles.includes(user.role)
@@ -53,7 +55,7 @@ export function Sidebar({ currentPage, onNavigate }: SidebarProps) {
     .toUpperCase();
 
   return (
-    <aside className="flex w-20 shrink-0 flex-col border-r border-border/60 bg-card/60 backdrop-blur lg:w-72">
+    <aside className="sticky top-0 flex h-screen w-20 shrink-0 flex-col border-r border-border/60 bg-card/60 backdrop-blur lg:w-72">
       <div className="border-b border-border/60 p-6">
         <div className="flex items-center gap-3">
           <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-primary text-primary-foreground shadow-sm">
@@ -91,6 +93,7 @@ export function Sidebar({ currentPage, onNavigate }: SidebarProps) {
         {filteredMenuItems.map((item) => {
           const Icon = item.icon;
           const isActive = currentPage === item.id;
+          const isMessagesItem = item.id === 'messages';
           
           return (
             <button
@@ -104,14 +107,40 @@ export function Sidebar({ currentPage, onNavigate }: SidebarProps) {
               )}
               title={item.label}
             >
-              <Icon className="h-5 w-5" />
+              <div className="relative">
+                <Icon className="h-5 w-5" />
+                {isMessagesItem && unreadCount > 0 && (
+                  <span className="absolute -right-2 -top-2 h-2.5 w-2.5 rounded-full bg-sky-500 shadow-sm" />
+                )}
+              </div>
               <span className="hidden font-medium lg:inline">{item.label}</span>
+              {isMessagesItem && unreadCount > 0 && (
+                <Badge
+                  variant={isActive ? 'secondary' : 'outline'}
+                  className={cn(
+                    'ml-auto hidden rounded-full px-2 py-0.5 text-[11px] lg:inline-flex',
+                    isActive && 'bg-primary-foreground/15 text-primary-foreground',
+                  )}
+                >
+                  {unreadCount > 99 ? '99+' : unreadCount}
+                </Badge>
+              )}
+              {isMessagesItem && hasImportantUnread && (
+                <span
+                  className={cn(
+                    'ml-auto inline-flex h-5 min-w-5 items-center justify-center rounded-full px-1 text-[11px] font-semibold lg:ml-2',
+                    isActive ? 'bg-rose-100 text-rose-700' : 'bg-rose-50 text-rose-600',
+                  )}
+                >
+                  !
+                </span>
+              )}
             </button>
           );
         })}
       </nav>
 
-      <div className="border-t border-border/60 p-4">
+      <div className="mt-auto border-t border-border/60 p-4">
         <Button
           variant="outline"
           className="w-full justify-center rounded-xl lg:justify-start"

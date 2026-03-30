@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useAuth } from '@/app/contexts/AuthContext';
+import { useNavigation } from '@/app/contexts/NavigationContext';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/app/components/ui/card';
 import { Button } from '@/app/components/ui/button';
 import { Badge } from '@/app/components/ui/badge';
@@ -9,7 +10,7 @@ import { Label } from '@/app/components/ui/label';
 import { Textarea } from '@/app/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/app/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/app/components/ui/tabs';
-import { Plus, Calendar, User, AlertCircle, Loader2, Pencil, Trash2 } from 'lucide-react';
+import { Plus, Calendar, User, AlertCircle, Loader2, Pencil, Trash2, MessageSquare, RefreshCw, ClipboardList } from 'lucide-react';
 import { apiRequest } from '@/lib/api';
 
 type TaskPriority = 'low' | 'medium' | 'high';
@@ -54,6 +55,7 @@ const initialFormState: TaskFormState = {
 
 export function TasksPage() {
   const { user } = useAuth();
+  const { navigate } = useNavigation();
   const [tasks, setTasks] = useState<Task[]>([]);
   const [interns, setInterns] = useState<InternOption[]>([]);
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
@@ -137,6 +139,29 @@ export function TasksPage() {
     inProgress: tasks.filter((task) => task.status === 'in-progress').length,
     completed: tasks.filter((task) => task.status === 'completed').length,
   }), [tasks]);
+
+  const statCards = [
+    {
+      label: 'Total Tasks',
+      value: stats.total,
+      helper: stats.total === 0 ? 'No assigned work yet' : `${stats.total} task${stats.total === 1 ? '' : 's'} in your list`,
+    },
+    {
+      label: 'Pending',
+      value: stats.pending,
+      helper: stats.pending === 0 ? 'Nothing waiting right now' : 'Tasks ready to start',
+    },
+    {
+      label: 'In Progress',
+      value: stats.inProgress,
+      helper: stats.inProgress === 0 ? 'No active work yet' : 'Tasks currently being worked on',
+    },
+    {
+      label: 'Completed',
+      value: stats.completed,
+      helper: stats.completed === 0 ? 'No completed tasks yet' : 'Finished assignments so far',
+    },
+  ];
 
   const openCreateDialog = () => {
     setEditingTask(null);
@@ -367,31 +392,16 @@ export function TasksPage() {
         </p>
       )}
 
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
-        <Card>
-          <CardContent className="p-6">
-            <p className="text-sm text-gray-600">Total Tasks</p>
-            <p className="mt-2 text-3xl font-semibold">{stats.total}</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-6">
-            <p className="text-sm text-gray-600">Pending</p>
-            <p className="mt-2 text-3xl font-semibold">{stats.pending}</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-6">
-            <p className="text-sm text-gray-600">In Progress</p>
-            <p className="mt-2 text-3xl font-semibold">{stats.inProgress}</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-6">
-            <p className="text-sm text-gray-600">Completed</p>
-            <p className="mt-2 text-3xl font-semibold">{stats.completed}</p>
-          </CardContent>
-        </Card>
+      <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
+        {statCards.map((stat) => (
+          <Card key={stat.label}>
+            <CardContent className="p-4">
+              <p className="text-sm text-gray-600">{stat.label}</p>
+              <p className="mt-1.5 text-2xl font-semibold">{stat.value}</p>
+              <p className="mt-1 text-xs text-muted-foreground">{stat.helper}</p>
+            </CardContent>
+          </Card>
+        ))}
       </div>
 
       <Card>
@@ -407,11 +417,11 @@ export function TasksPage() {
             </div>
           ) : (
             <Tabs defaultValue="all">
-              <TabsList>
-                <TabsTrigger value="all">All</TabsTrigger>
-                <TabsTrigger value="pending">Pending</TabsTrigger>
-                <TabsTrigger value="in-progress">In Progress</TabsTrigger>
-                <TabsTrigger value="completed">Completed</TabsTrigger>
+              <TabsList className="h-auto flex-wrap gap-2 rounded-2xl bg-muted/50 p-1">
+                <TabsTrigger value="all" className="rounded-xl px-4 py-2">All</TabsTrigger>
+                <TabsTrigger value="pending" className="rounded-xl px-4 py-2">Pending</TabsTrigger>
+                <TabsTrigger value="in-progress" className="rounded-xl px-4 py-2">In Progress</TabsTrigger>
+                <TabsTrigger value="completed" className="rounded-xl px-4 py-2">Completed</TabsTrigger>
               </TabsList>
 
               {['all', 'pending', 'in-progress', 'completed'].map((status) => (
@@ -529,9 +539,30 @@ export function TasksPage() {
                     </Dialog>
                   ))}
                   {filterTasksByStatus(status).length === 0 && (
-                    <div className="py-12 text-center text-gray-500">
-                      <AlertCircle className="mx-auto mb-4 h-12 w-12 opacity-50" />
-                      <p>No tasks found</p>
+                    <div className="rounded-2xl border border-dashed bg-muted/20 px-6 py-10 text-center">
+                      <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-background text-muted-foreground shadow-sm">
+                        <ClipboardList className="h-6 w-6" />
+                      </div>
+                      <p className="mt-4 text-base font-medium text-foreground">
+                        {isSupervisorView ? 'No tasks in this view yet' : 'No tasks assigned yet'}
+                      </p>
+                      <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-muted-foreground">
+                        {isSupervisorView
+                          ? 'Create a task or switch filters to review work assigned to interns.'
+                          : 'Your supervisor has not assigned any work yet. Check messages for updates or refresh this page in a moment.'}
+                      </p>
+                      <div className="mt-5 flex flex-wrap items-center justify-center gap-2">
+                        {!isSupervisorView && (
+                          <Button variant="outline" onClick={() => navigate('messages')}>
+                            <MessageSquare className="mr-2 h-4 w-4" />
+                            Check Messages
+                          </Button>
+                        )}
+                        <Button variant={isSupervisorView ? 'default' : 'outline'} onClick={loadTasks}>
+                          <RefreshCw className="mr-2 h-4 w-4" />
+                          Refresh Tasks
+                        </Button>
+                      </div>
                     </div>
                   )}
                 </TabsContent>

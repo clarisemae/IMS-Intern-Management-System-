@@ -10,7 +10,7 @@ import { AlertCircle, Calendar, CheckCircle2, Clock, Download, FileText, Loader2
 import { apiDownload, apiRequest } from '@/lib/api';
 
 type AttendanceStatus = 'present' | 'late' | 'absent';
-type ReportStatus = 'pending' | 'approved' | 'needs-revision';
+type ReportStatus = 'submitted';
 
 interface AttendanceRecord {
   id: number;
@@ -40,7 +40,7 @@ interface ScheduleEntry {
 }
 
 interface ScheduleStatus {
-  code: 'early' | 'on-time' | 'late' | 'missed' | 'no-schedule';
+  code: 'early' | 'on-time' | 'grace' | 'late' | 'missed' | 'no-schedule';
   label: string;
   detail: string;
 }
@@ -64,7 +64,6 @@ interface DailyReport {
   content: string;
   imageData?: string | null;
   status: ReportStatus;
-  comments?: string | null;
 }
 
 function toDateOnly(value: string) {
@@ -169,11 +168,7 @@ function getReportStatusLabel(status: ReportStatus | null) {
     return 'No report yet';
   }
 
-  if (status === 'needs-revision') {
-    return 'Needs Revision';
-  }
-
-  return status.charAt(0).toUpperCase() + status.slice(1);
+  return 'Saved';
 }
 
 function getActionLabel(record: AttendanceRecord | null) {
@@ -502,7 +497,7 @@ export function AttendancePage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-semibold">Attendance</h1>
-          <p className="mt-1 text-gray-600">Track your daily attendance and submit your daily report after clock-out</p>
+          <p className="mt-1 text-gray-600">Track your daily attendance and save your daily log after clock-out</p>
         </div>
         <Button variant="outline" disabled>
           <Download className="mr-2 h-4 w-4" />
@@ -519,7 +514,7 @@ export function AttendancePage() {
       <Dialog open={isReportDialogOpen} onOpenChange={(open) => (!open ? closeReportDialog() : setIsReportDialogOpen(true))}>
         <DialogContent className="max-w-2xl">
           <DialogHeader>
-            <DialogTitle>Daily Task Report</DialogTitle>
+            <DialogTitle>Daily Log</DialogTitle>
             <DialogDescription>
               {selectedRecord
                 ? `Document what you worked on for ${formatLongDate(selectedRecord.date)}.`
@@ -530,13 +525,13 @@ export function AttendancePage() {
           {isLoadingReport ? (
             <div className="flex items-center justify-center py-12 text-sm text-muted-foreground">
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              Loading daily report...
+              Loading daily log...
             </div>
           ) : (
             <div className="space-y-4 py-2">
               <div className="flex flex-wrap items-center gap-2">
-                <Badge variant="outline">Daily Report</Badge>
-                <Badge variant={selectedReport?.status === 'approved' ? 'default' : selectedReport?.status === 'needs-revision' ? 'destructive' : 'secondary'}>
+                <Badge variant="outline">Daily Log</Badge>
+                <Badge variant="secondary">
                   {getReportStatusLabel(selectedReport?.status ?? null)}
                 </Badge>
                 {selectedRecord?.timeOut && (
@@ -589,13 +584,6 @@ export function AttendancePage() {
                 )}
               </div>
 
-              {selectedReport?.comments && (
-                <div className="rounded-lg border border-amber-200 bg-amber-50 p-4">
-                  <p className="text-sm font-medium text-amber-900">Reviewer Comments</p>
-                  <p className="mt-2 whitespace-pre-wrap text-sm text-amber-800">{selectedReport.comments}</p>
-                </div>
-              )}
-
               <div className="flex flex-wrap justify-end gap-2">
                 <Button variant="outline" onClick={closeReportDialog} disabled={isSavingReport || isDownloadingReport}>
                   Close
@@ -610,7 +598,7 @@ export function AttendancePage() {
                 <Button onClick={handleSaveReport} disabled={!reportContent.trim() || isSavingReport || isDownloadingReport}>
                   {isSavingReport && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                   {!isSavingReport && selectedReport && <Pencil className="mr-2 h-4 w-4" />}
-                  {selectedReport ? 'Save Changes' : 'Submit Report'}
+                  {selectedReport ? 'Save Changes' : 'Submit Log'}
                 </Button>
               </div>
             </div>
@@ -626,29 +614,49 @@ export function AttendancePage() {
               <CardDescription>{todayLabel}</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
-              <div className="rounded-2xl border border-cyan-100 bg-gradient-to-br from-cyan-50 to-sky-100 p-4">
-                <div className="flex items-start justify-between gap-4">
-                  <div>
-                    <p className="text-sm font-medium text-cyan-900">Live Time</p>
-                    <p className="mt-1 text-2xl font-semibold text-slate-900">
-                      {currentTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
-                    </p>
-                    <p className="mt-1 text-xs text-cyan-900/70">
-                      {currentTime.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                    </p>
+              <div className="rounded-2xl border border-cyan-100 bg-gradient-to-br from-cyan-50 to-sky-100 p-5 shadow-sm">
+                <div className="flex min-h-[220px] flex-col justify-between gap-5">
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="flex flex-col gap-3">
+                      <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-white/85 text-cyan-700 shadow-sm ring-1 ring-cyan-100">
+                        <Clock className="h-5.5 w-5.5" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium text-cyan-900">Live Time</p>
+                        <p className="mt-2 whitespace-nowrap text-[2.15rem] font-semibold leading-none text-slate-900">
+                          {currentTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
+                        </p>
+                        <p className="mt-3 text-xs text-cyan-900/70">
+                          {currentTime.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                        </p>
+                      </div>
+                    </div>
+                    <Badge
+                      variant={
+                        attendanceCompleted
+                          ? 'secondary'
+                          : isClockedIn
+                            ? 'default'
+                            : 'outline'
+                      }
+                      className="rounded-full px-3 py-1"
+                    >
+                      {attendanceCompleted ? 'Completed' : isClockedIn ? 'Clocked In' : 'Ready to Clock In'}
+                    </Badge>
                   </div>
-                  <Badge
-                    variant={
-                      attendanceCompleted
-                        ? 'secondary'
-                        : isClockedIn
-                          ? 'default'
-                          : 'outline'
-                    }
-                    className="rounded-full px-3 py-1"
-                  >
-                    {attendanceCompleted ? 'Completed' : isClockedIn ? 'Clocked In' : 'Ready to Clock In'}
-                  </Badge>
+                  <div>
+                    <Button
+                      onClick={handleClockAction}
+                      className="w-full"
+                      size="lg"
+                      variant={isClockedIn ? 'destructive' : 'default'}
+                      disabled={isSubmitting || attendanceCompleted}
+                    >
+                      {isSubmitting && <Loader2 className="mr-2 h-5 w-5 animate-spin" />}
+                      {!isSubmitting && <Clock className="mr-2 h-5 w-5" />}
+                      {actionLabel}
+                    </Button>
+                  </div>
                 </div>
               </div>
 
@@ -659,48 +667,6 @@ export function AttendancePage() {
                 </div>
               ) : (
                 <>
-                  <div className="rounded-2xl border p-4">
-                    <div className="flex items-start justify-between gap-3">
-                      <div>
-                        <p className="text-sm font-medium text-foreground">Attendance Action</p>
-                        <p className="mt-1 text-sm text-muted-foreground">
-                          {attendanceCompleted
-                            ? needsDailyReport
-                              ? 'Attendance completed. Submit your daily report next.'
-                              : 'Attendance for today is already completed.'
-                            : isClockedIn
-                              ? 'You are currently clocked in. Clock out once your shift ends.'
-                              : 'You have not clocked in yet for today.'}
-                        </p>
-                      </div>
-                      {needsDailyReport && (
-                        <Badge variant="destructive" className="rounded-full">
-                          Report Needed
-                        </Badge>
-                      )}
-                    </div>
-
-                    <Button
-                      onClick={handleClockAction}
-                      className="mt-4 w-full"
-                      size="lg"
-                      variant={isClockedIn ? 'destructive' : 'default'}
-                      disabled={isSubmitting || attendanceCompleted}
-                    >
-                      {isSubmitting && <Loader2 className="mr-2 h-5 w-5 animate-spin" />}
-                      {!isSubmitting && <Clock className="mr-2 h-5 w-5" />}
-                      {actionLabel}
-                    </Button>
-
-                    {attendanceCompleted && todayRecord && (
-                      <div className="mt-3 rounded-xl bg-muted/40 px-3 py-3 text-sm text-muted-foreground">
-                        {needsDailyReport
-                          ? 'Attendance is complete. Use the Daily Report panel on the right to submit your report.'
-                          : 'Attendance is complete for today.'}
-                      </div>
-                    )}
-                  </div>
-
                   <div className="grid grid-cols-2 gap-3">
                     <div className="rounded-xl bg-muted/50 p-3">
                       <p className="text-xs font-medium uppercase tracking-[0.16em] text-muted-foreground">Time In</p>
@@ -728,6 +694,8 @@ export function AttendancePage() {
                                 ? 'destructive'
                                 : schedule.status.code === 'on-time'
                                   ? 'default'
+                                  : schedule.status.code === 'grace'
+                                    ? 'outline'
                                   : 'secondary'
                             }
                           >
@@ -746,6 +714,12 @@ export function AttendancePage() {
                         </p>
                       </div>
                     )}
+
+                    {attendanceCompleted && todayRecord && needsDailyReport && (
+                      <div className="rounded-xl bg-muted/40 px-3 py-3 text-sm text-muted-foreground">
+                        Attendance is complete. Use the Daily Log panel on the right to save your log.
+                      </div>
+                    )}
                   </div>
                 </>
               )}
@@ -759,38 +733,38 @@ export function AttendancePage() {
               <CardTitle>Progress Toward Completion</CardTitle>
               <CardDescription>Track your required internship hours in one place</CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-                <div className="rounded-2xl border bg-background p-4">
+            <CardContent className="space-y-2.5 pt-1">
+              <div className="grid grid-cols-1 gap-2.5 md:grid-cols-3">
+                <div className="rounded-2xl border bg-background p-2.5">
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-sm text-muted-foreground">Total Rendered</p>
-                      <p className="mt-2 text-3xl font-semibold">{summary.totalHours.toFixed(1)}</p>
+                      <p className="mt-1 text-2xl font-semibold">{summary.totalHours.toFixed(1)}</p>
                     </div>
-                    <div className="rounded-full bg-sky-50 p-3 text-sky-700">
-                      <Clock className="h-5 w-5" />
+                    <div className="rounded-full bg-sky-50 p-2.5 text-sky-700">
+                      <Clock className="h-4.5 w-4.5" />
                     </div>
                   </div>
                 </div>
-                <div className="rounded-2xl border bg-background p-4">
+                <div className="rounded-2xl border bg-background p-2.5">
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-sm text-muted-foreground">This Week</p>
-                      <p className="mt-2 text-3xl font-semibold">{summary.thisWeekHours.toFixed(1)}</p>
+                      <p className="mt-1 text-2xl font-semibold">{summary.thisWeekHours.toFixed(1)}</p>
                     </div>
-                    <div className="rounded-full bg-emerald-50 p-3 text-emerald-700">
-                      <Timer className="h-5 w-5" />
+                    <div className="rounded-full bg-emerald-50 p-2.5 text-emerald-700">
+                      <Timer className="h-4.5 w-4.5" />
                     </div>
                   </div>
                 </div>
-                <div className="rounded-2xl border bg-background p-4">
+                <div className="rounded-2xl border bg-background p-2.5">
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-sm text-muted-foreground">Hours Remaining</p>
-                      <p className="mt-2 text-3xl font-semibold">{remainingHours.toFixed(1)}</p>
+                      <p className="mt-1 text-2xl font-semibold">{remainingHours.toFixed(1)}</p>
                     </div>
-                    <div className="rounded-full bg-amber-50 p-3 text-amber-700">
-                      <AlertCircle className="h-5 w-5" />
+                    <div className="rounded-full bg-amber-50 p-2.5 text-amber-700">
+                      <AlertCircle className="h-4.5 w-4.5" />
                     </div>
                   </div>
                 </div>
@@ -799,14 +773,14 @@ export function AttendancePage() {
               <div className="flex items-start justify-between gap-4">
                 <div>
                   <p className="text-sm text-muted-foreground">Progress</p>
-                  <p className="mt-1 text-3xl font-semibold">{summary.progressPercent}%</p>
+                  <p className="mt-0.5 text-2xl font-semibold">{summary.progressPercent}%</p>
                 </div>
                 <div className="text-right">
                   <p className="text-sm text-muted-foreground">Remaining</p>
-                  <p className="mt-1 text-lg font-medium">{remainingHours.toFixed(1)} hrs</p>
+                  <p className="mt-0.5 text-base font-medium">{remainingHours.toFixed(1)} hrs</p>
                 </div>
               </div>
-              <div className="h-3 overflow-hidden rounded-full bg-muted">
+              <div className="h-2.5 overflow-hidden rounded-full bg-muted">
                 <div
                   className="h-full rounded-full bg-gradient-to-r from-sky-500 to-cyan-500"
                   style={{ width: `${summary.progressPercent}%` }}
@@ -817,7 +791,7 @@ export function AttendancePage() {
                 <span>{requiredHours / 2} hrs</span>
                 <span>{requiredHours} hrs</span>
               </div>
-              <div className="rounded-xl bg-muted/40 px-4 py-3 text-sm text-muted-foreground">
+              <div className="rounded-xl bg-muted/40 px-3 py-2 text-sm text-muted-foreground">
                 {summary.progressPercent >= 100
                   ? `You have completed the ${requiredHours}-hour internship requirement.`
                   : remainingHours <= 40
@@ -833,7 +807,7 @@ export function AttendancePage() {
                 <div className="flex items-center justify-between">
                   <div>
                     <CardTitle>Attendance History</CardTitle>
-                    <CardDescription>Your recent attendance records and linked daily reports</CardDescription>
+                    <CardDescription>Your recent attendance records and linked daily logs</CardDescription>
                   </div>
                   <Button variant="outline" size="sm" disabled>
                     <Calendar className="mr-2 h-4 w-4" />
@@ -857,7 +831,7 @@ export function AttendancePage() {
                           <TableHead>Time Out</TableHead>
                           <TableHead>Total Hours</TableHead>
                           <TableHead>Status</TableHead>
-                          <TableHead>Daily Report</TableHead>
+                          <TableHead>Daily Log</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -895,7 +869,7 @@ export function AttendancePage() {
                                       size="icon"
                                       className="h-8 w-8"
                                       onClick={() => openReportDialog(record)}
-                                      title={getRecordReport(record) ? 'View or edit daily report' : 'Add daily report'}
+                                      title={getRecordReport(record) ? 'View or edit daily log' : 'Add daily log'}
                                     >
                                       <FileText className={`h-4 w-4 ${getRecordReport(record) ? 'text-foreground' : 'text-muted-foreground'}`} />
                                     </Button>
@@ -920,35 +894,35 @@ export function AttendancePage() {
             <div className="space-y-6">
               <Card>
                 <CardHeader>
-                  <CardTitle>Daily Report Status</CardTitle>
-                  <CardDescription>Keep your documentation complete every day</CardDescription>
+                  <CardTitle>Daily Log Status</CardTitle>
+                  <CardDescription>Keep your daily documentation complete every day</CardDescription>
                 </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="rounded-xl border p-4">
+                <CardContent className="space-y-3 pt-2">
+                  <div className="rounded-xl border p-3">
                     <div className="flex items-center gap-3">
                       {todayReport ? (
-                        <CheckCircle2 className="h-5 w-5 text-emerald-600" />
+                        <CheckCircle2 className="h-4.5 w-4.5 text-emerald-600" />
                       ) : (
-                        <FileText className="h-5 w-5 text-amber-600" />
+                        <FileText className="h-4.5 w-4.5 text-amber-600" />
                       )}
                       <div>
-                        <p className="text-sm font-medium">
-                          {todayReport ? 'Report saved' : needsDailyReport ? 'Report pending' : 'Report unavailable'}
+                        <p className="text-sm font-medium leading-5">
+                      {todayReport ? 'Daily log saved' : needsDailyReport ? 'Daily log pending' : 'Daily log unavailable'}
                         </p>
-                        <p className="mt-1 text-sm text-muted-foreground">
+                        <p className="mt-0.5 text-sm leading-6 text-muted-foreground">
                           {todayReport
-                            ? `Status: ${getReportStatusLabel(todayReport.status)}`
+                            ? 'Your daily log for today has been saved.'
                             : needsDailyReport
-                              ? 'You already completed attendance. Submit your report next.'
+                              ? 'You already completed attendance. Submit your daily log next.'
                               : 'Finish today’s attendance first to unlock the report form.'}
                         </p>
                       </div>
                     </div>
                   </div>
                   {attendanceCompleted && todayRecord && (
-                    <Button type="button" className="w-full" variant={needsDailyReport ? 'default' : 'outline'} onClick={handleOpenTodayReport}>
+                    <Button type="button" className="h-10 w-full" variant={needsDailyReport ? 'default' : 'outline'} onClick={handleOpenTodayReport}>
                       <FileText className="mr-2 h-4 w-4" />
-                      {needsDailyReport ? 'Submit Daily Report' : 'Open Today’s Report'}
+                      {needsDailyReport ? 'Submit Daily Log' : 'Open Today Log'}
                     </Button>
                   )}
                 </CardContent>

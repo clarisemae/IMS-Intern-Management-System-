@@ -116,6 +116,8 @@ export function getScheduleStatusForNow(
   timeIn: string | Date | null,
   now = new Date(),
 ) {
+  const lateGraceMinutes = 15;
+
   if (!schedule || !schedule.isActive || !schedule.startTime || !schedule.endTime) {
     return {
       code: "no-schedule",
@@ -140,11 +142,19 @@ export function getScheduleStatusForNow(
     const recordedTime = new Date(timeIn);
     const recordedMinutes = recordedTime.getHours() * 60 + recordedTime.getMinutes();
 
-    if (recordedMinutes > startMinutes) {
+    if (recordedMinutes > startMinutes + lateGraceMinutes) {
       return {
         code: "late",
         label: "Late",
-        detail: `Clock-in was scheduled at ${schedule.startTime}.`,
+        detail: `You clocked in after the ${schedule.startTime} start time and beyond the 15-minute grace period.`,
+      };
+    }
+
+    if (recordedMinutes > startMinutes) {
+      return {
+        code: "grace",
+        label: "Grace Period",
+        detail: `You clocked in within the 15-minute grace period after ${schedule.startTime}.`,
       };
     }
 
@@ -171,11 +181,19 @@ export function getScheduleStatusForNow(
     };
   }
 
+  if (currentMinutes <= startMinutes + lateGraceMinutes) {
+    return {
+      code: "grace",
+      label: "Grace Period",
+      detail: `You still have a 15-minute grace period to clock in for your ${schedule.startTime} shift.`,
+    };
+  }
+
   if (currentMinutes <= endMinutes) {
     return {
       code: "late",
       label: "Late",
-      detail: `You have not clocked in for your ${schedule.startTime} shift.`,
+      detail: `You are already late for your ${schedule.startTime} shift.`,
     };
   }
 

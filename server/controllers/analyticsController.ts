@@ -11,7 +11,7 @@ export async function getAnalytics(req: Request, res: Response) {
        u.full_name AS name,
        LEAST(100, ROUND(COALESCE(att.total_hours, 0) / 200 * 100)) AS attendance,
        LEAST(100, ROUND(COALESCE(task_stats.completed_tasks, 0) / NULLIF(COALESCE(task_stats.total_tasks, 0), 0) * 100)) AS task_completion,
-       LEAST(100, ROUND(COALESCE(report_stats.approved_reports, 0) / NULLIF(COALESCE(report_stats.total_reports, 0), 0) * 100)) AS report_quality
+       LEAST(100, ROUND(COALESCE(report_stats.submitted_reports, 0) / NULLIF(COALESCE(attendance_stats.total_days, 0), 0) * 100)) AS report_quality
      FROM users u
      LEFT JOIN (
        SELECT user_id, SUM(total_hours) AS total_hours
@@ -27,10 +27,14 @@ export async function getAnalytics(req: Request, res: Response) {
        GROUP BY assigned_to
      ) task_stats ON task_stats.assigned_to = u.id
      LEFT JOIN (
+       SELECT user_id, COUNT(*) AS total_days
+       FROM attendance
+       GROUP BY user_id
+     ) attendance_stats ON attendance_stats.user_id = u.id
+     LEFT JOIN (
        SELECT
          user_id,
-         SUM(CASE WHEN status = 'approved' THEN 1 ELSE 0 END) AS approved_reports,
-         COUNT(*) AS total_reports
+         COUNT(*) AS submitted_reports
        FROM reports
        GROUP BY user_id
      ) report_stats ON report_stats.user_id = u.id
@@ -120,8 +124,13 @@ export async function getAnalytics(req: Request, res: Response) {
 
   const [reportMetricRows] = await db.query(
     `SELECT
-       ROUND(COALESCE(SUM(CASE WHEN status = 'approved' THEN 1 ELSE 0 END) / NULLIF(COUNT(*), 0) * 100, 0)) AS quality_rate
-     FROM reports`,
+       ROUND(
+         COALESCE(
+           (SELECT COUNT(*) FROM reports WHERE type = 'daily')
+           / NULLIF((SELECT COUNT(*) FROM attendance WHERE time_out IS NOT NULL), 0) * 100,
+           0
+         )
+       ) AS quality_rate`,
   );
 
   const performanceData = (performanceRows as any[]).map((row) => ({

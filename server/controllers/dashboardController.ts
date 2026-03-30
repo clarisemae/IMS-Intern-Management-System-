@@ -96,14 +96,23 @@ export async function getDashboardOverview(req: Request, res: Response) {
       })),
       notifications: (reportRows as any[]).map((row, index) => ({
         id: index + 1,
-        message:
-          row.status === "needs_revision"
-            ? `Revision requested for your ${row.type} report`
-            : row.status === "approved"
-              ? `Your ${row.type} report was approved`
-              : `You submitted a ${row.type} report`,
+        message: `You saved a ${row.type} report`,
         time: formatRelativeTime(row.created_at),
-      })).concat({
+      })).concat(
+        scheduleStatus.code === "late"
+          ? [{
+              id: 999,
+              message: `Late reminder: you are already past the 15-minute grace period for your ${todaySchedule?.startTime} shift.`,
+              time: "Now",
+            }]
+          : scheduleStatus.code === "grace"
+            ? [{
+                id: 998,
+                message: `Clock in reminder: you are currently within the 15-minute grace period for your ${todaySchedule?.startTime} shift.`,
+                time: "Now",
+              }]
+            : [],
+      ).concat({
         id: 1000,
         message: todaySchedule?.isActive
           ? `${todaySchedule.label} schedule: ${todaySchedule.startTime} - ${todaySchedule.endTime} (${scheduleStatus.label})`
@@ -213,6 +222,11 @@ export async function getDashboardOverview(req: Request, res: Response) {
   }
 
   const [userCountRows] = await db.query(`SELECT role, COUNT(*) AS total FROM users GROUP BY role`);
+  const [activeUserRows] = await db.query(
+    `SELECT COUNT(*) AS total
+     FROM users
+     WHERE status = 'active'`,
+  );
   const [hoursRows] = await db.query(`SELECT COALESCE(SUM(total_hours), 0) AS total_hours FROM attendance`);
   const [taskStatsRows] = await db.query(
     `SELECT
@@ -254,7 +268,9 @@ export async function getDashboardOverview(req: Request, res: Response) {
   const totalTasks = completedTasks + pendingTasks;
   const taskCompletionRate = totalTasks ? Math.round((completedTasks / totalTasks) * 100) : 0;
   const attendanceRate = totalUsers ? Math.min(100, Math.round((totalHoursLogged / (totalUsers * 200)) * 100)) : 0;
-  const reportSubmissionRate = Math.min(100, Math.round(((recentReportRows as any[]).length / Math.max(1, roleCounts.intern || 1)) * 100));
+  const activeUserRate = totalUsers
+    ? Math.round((Number((activeUserRows as any[])[0]?.total ?? 0) / totalUsers) * 100)
+    : 0;
 
   return res.json({
     systemStats: {
@@ -262,7 +278,7 @@ export async function getDashboardOverview(req: Request, res: Response) {
       activeInterns: roleCounts.intern || 0,
       totalHoursLogged,
       completedTasks,
-      pendingReports: (recentReportRows as any[]).filter((row) => row.status === "pending").length,
+      pendingReports: (recentReportRows as any[]).length,
     },
     attendanceData: (attendanceTrendRows as any[]).map((row) => ({ month: row.month, hours: Number(row.hours) })),
     taskCompletionData: (taskCompletionRows as any[]).map((row) => ({
@@ -278,18 +294,13 @@ export async function getDashboardOverview(req: Request, res: Response) {
     recentActivities: (recentReportRows as any[]).map((row, index) => ({
       id: index + 1,
       user: row.user,
-      action:
-        row.status === "approved"
-          ? `had a ${row.type} report approved`
-          : row.status === "needs_revision"
-            ? `received revision feedback on a ${row.type} report`
-            : `submitted a ${row.type} report`,
+      action: `submitted a ${row.type} report`,
       time: formatRelativeTime(row.created_at),
     })),
     health: {
       attendanceRate,
       taskCompletionRate,
-      reportSubmissionRate,
+      activeUserRate,
     },
   });
 }

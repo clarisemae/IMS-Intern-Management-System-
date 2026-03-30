@@ -33,11 +33,7 @@ function mapAttendanceRow(row: any) {
     status: row.time_out ? "completed" : "active",
     attendanceStatus: row.status,
     reportId: row.report_id ? Number(row.report_id) : null,
-    reportStatus: row.report_status
-      ? row.report_status === "needs_revision"
-        ? "needs-revision"
-        : row.report_status
-      : null,
+    reportStatus: row.report_status ? "submitted" : null,
   };
 }
 
@@ -76,7 +72,7 @@ export async function getAttendance(req: Request, res: Response) {
          LIMIT 1
        ) AS report_id,
        (
-         SELECT r.status
+         SELECT 'submitted'
          FROM reports r
          WHERE r.user_id = a.user_id
            AND r.type = 'daily'
@@ -110,7 +106,7 @@ export async function getAttendance(req: Request, res: Response) {
          LIMIT 1
        ) AS report_id,
        (
-         SELECT r.status
+         SELECT 'submitted'
          FROM reports r
          WHERE r.user_id = a.user_id
            AND r.type = 'daily'

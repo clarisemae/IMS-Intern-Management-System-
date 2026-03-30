@@ -8,7 +8,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/app/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/app/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/app/components/ui/tabs';
-import { UserPlus, Search, MoreVertical, Edit, Trash2, Loader2 } from 'lucide-react';
+import { Checkbox } from '@/app/components/ui/checkbox';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/app/components/ui/collapsible';
+import { UserPlus, Search, MoreVertical, Edit, Trash2, Loader2, ChevronDown } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/app/components/ui/dropdown-menu';
 import { apiRequest } from '@/lib/api';
 
@@ -46,6 +48,13 @@ interface UserFormState {
   schedule: ScheduleEntry[];
 }
 
+interface BatchScheduleState {
+  startTime: string;
+  endTime: string;
+}
+
+const weekdayDays = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'];
+
 const defaultSchedule: ScheduleEntry[] = [
   { day: 'monday', label: 'Monday', startTime: '08:00', endTime: '17:00', isActive: true },
   { day: 'tuesday', label: 'Tuesday', startTime: '08:00', endTime: '17:00', isActive: true },
@@ -76,6 +85,12 @@ export function UserManagementPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState('');
+  const [batchSchedule, setBatchSchedule] = useState<BatchScheduleState>({
+    startTime: '08:00',
+    endTime: '17:00',
+  });
+  const [batchSelectedDays, setBatchSelectedDays] = useState<string[]>(weekdayDays);
+  const [isScheduleOpen, setIsScheduleOpen] = useState(false);
 
   const loadUsers = async () => {
     setIsLoading(true);
@@ -136,6 +151,9 @@ export function UserManagementPage() {
   const openCreateDialog = () => {
     setEditingUser(null);
     setFormData(initialFormState);
+    setBatchSchedule({ startTime: '08:00', endTime: '17:00' });
+    setBatchSelectedDays(weekdayDays);
+    setIsScheduleOpen(false);
     setError('');
     setIsCreateDialogOpen(true);
   };
@@ -154,6 +172,13 @@ export function UserManagementPage() {
         ? user.schedule.map((entry) => ({ ...entry }))
         : defaultSchedule.map((entry) => ({ ...entry })),
     });
+    const mondaySchedule = user.schedule?.find((entry) => entry.day === 'monday');
+    setBatchSchedule({
+      startTime: mondaySchedule?.startTime ?? '08:00',
+      endTime: mondaySchedule?.endTime ?? '17:00',
+    });
+    setBatchSelectedDays(weekdayDays);
+    setIsScheduleOpen(false);
     setError('');
     setIsCreateDialogOpen(true);
   };
@@ -162,7 +187,40 @@ export function UserManagementPage() {
     setIsCreateDialogOpen(false);
     setEditingUser(null);
     setFormData(initialFormState);
+    setBatchSchedule({ startTime: '08:00', endTime: '17:00' });
+    setBatchSelectedDays(weekdayDays);
+    setIsScheduleOpen(false);
     setError('');
+  };
+
+  const applyBatchSchedule = () => {
+    if (!batchSelectedDays.length) {
+      setError('Select at least one day for the batch schedule update.');
+      return;
+    }
+
+    setFormData((current) => ({
+      ...current,
+      schedule: current.schedule.map((entry) => {
+        if (batchSelectedDays.includes(entry.day)) {
+          return {
+            ...entry,
+            startTime: batchSchedule.startTime || null,
+            endTime: batchSchedule.endTime || null,
+            isActive: Boolean(batchSchedule.startTime && batchSchedule.endTime),
+          };
+        }
+
+        return entry;
+      }),
+    }));
+    setError('');
+  };
+
+  const handleBatchDayToggle = (day: string, checked: boolean) => {
+    setBatchSelectedDays((current) =>
+      checked ? [...current, day] : current.filter((item) => item !== day),
+    );
   };
 
   const handleSubmit = async () => {
@@ -326,47 +384,109 @@ export function UserManagementPage() {
                 />
               </div>
               {formData.role === 'intern' && (
-                <div className="space-y-3 rounded-xl border p-4">
-                  <div>
-                    <h3 className="font-medium">Weekly Schedule</h3>
-                    <p className="text-sm text-muted-foreground">Set the intern's daily start and end time.</p>
-                  </div>
-                  <div className="space-y-3">
-                    {formData.schedule.map((entry) => (
-                      <div key={entry.day} className="grid grid-cols-[120px_1fr_1fr] items-center gap-3">
-                        <Label>{entry.label}</Label>
-                        <Input
-                          type="time"
-                          value={entry.startTime ?? ''}
-                          onChange={(e) => setFormData((current) => ({
-                            ...current,
-                            schedule: current.schedule.map((item) => item.day === entry.day
-                              ? {
-                                  ...item,
-                                  startTime: e.target.value || null,
-                                  isActive: Boolean((e.target.value || item.endTime) && (item.endTime || e.target.value)),
-                                }
-                              : item),
-                          }))}
-                        />
-                        <Input
-                          type="time"
-                          value={entry.endTime ?? ''}
-                          onChange={(e) => setFormData((current) => ({
-                            ...current,
-                            schedule: current.schedule.map((item) => item.day === entry.day
-                              ? {
-                                  ...item,
-                                  endTime: e.target.value || null,
-                                  isActive: Boolean((item.startTime || e.target.value) && (e.target.value || item.startTime)),
-                                }
-                              : item),
-                          }))}
-                        />
+                <Collapsible open={isScheduleOpen} onOpenChange={setIsScheduleOpen}>
+                  <div className="rounded-xl border">
+                    <CollapsibleTrigger asChild>
+                      <button
+                        type="button"
+                        className="flex w-full items-center justify-between px-4 py-3 text-left"
+                      >
+                        <div>
+                          <h3 className="font-medium">Weekly Schedule</h3>
+                          <p className="text-sm text-muted-foreground">Open to batch update or edit the intern schedule before saving.</p>
+                        </div>
+                        <ChevronDown className={`h-4 w-4 transition-transform ${isScheduleOpen ? 'rotate-180' : ''}`} />
+                      </button>
+                    </CollapsibleTrigger>
+                    <CollapsibleContent>
+                      <div className="space-y-3 border-t p-4">
+                        <div className="rounded-xl border bg-muted/30 p-4 space-y-3">
+                          <div>
+                            <p className="text-sm font-medium">Batch Update</p>
+                            <p className="text-xs text-muted-foreground">Check the days you want to update, then apply one schedule to all selected days.</p>
+                          </div>
+                          <div className="grid grid-cols-[1fr_1fr] gap-3">
+                            <div className="space-y-2">
+                              <Label htmlFor="batch-start-time">Start Time</Label>
+                              <Input
+                                id="batch-start-time"
+                                type="time"
+                                value={batchSchedule.startTime}
+                                onChange={(e) => setBatchSchedule((current) => ({ ...current, startTime: e.target.value }))}
+                              />
+                            </div>
+                            <div className="space-y-2">
+                              <Label htmlFor="batch-end-time">End Time</Label>
+                              <Input
+                                id="batch-end-time"
+                                type="time"
+                                value={batchSchedule.endTime}
+                                onChange={(e) => setBatchSchedule((current) => ({ ...current, endTime: e.target.value }))}
+                              />
+                            </div>
+                          </div>
+                          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                            {formData.schedule.map((entry) => (
+                              <label key={`batch-${entry.day}`} className="flex items-center gap-2 rounded-lg border bg-background px-3 py-2 text-sm">
+                                <Checkbox
+                                  checked={batchSelectedDays.includes(entry.day)}
+                                  onCheckedChange={(checked) => handleBatchDayToggle(entry.day, checked === true)}
+                                />
+                                <span>{entry.label}</span>
+                              </label>
+                            ))}
+                          </div>
+                          <div className="flex justify-end">
+                            <Button
+                              type="button"
+                              variant="secondary"
+                              size="sm"
+                              onClick={applyBatchSchedule}
+                              disabled={!batchSchedule.startTime || !batchSchedule.endTime || batchSelectedDays.length === 0}
+                            >
+                              Apply to Checked Days
+                            </Button>
+                          </div>
+                        </div>
+                        <div className="space-y-3">
+                          {formData.schedule.map((entry) => (
+                            <div key={entry.day} className="grid grid-cols-[120px_1fr_1fr] items-center gap-3">
+                              <Label>{entry.label}</Label>
+                              <Input
+                                type="time"
+                                value={entry.startTime ?? ''}
+                                onChange={(e) => setFormData((current) => ({
+                                  ...current,
+                                  schedule: current.schedule.map((item) => item.day === entry.day
+                                    ? {
+                                        ...item,
+                                        startTime: e.target.value || null,
+                                        isActive: Boolean((e.target.value || item.endTime) && (item.endTime || e.target.value)),
+                                      }
+                                    : item),
+                                }))}
+                              />
+                              <Input
+                                type="time"
+                                value={entry.endTime ?? ''}
+                                onChange={(e) => setFormData((current) => ({
+                                  ...current,
+                                  schedule: current.schedule.map((item) => item.day === entry.day
+                                    ? {
+                                        ...item,
+                                        endTime: e.target.value || null,
+                                        isActive: Boolean((item.startTime || e.target.value) && (e.target.value || item.startTime)),
+                                      }
+                                    : item),
+                                }))}
+                              />
+                            </div>
+                          ))}
+                        </div>
                       </div>
-                    ))}
+                    </CollapsibleContent>
                   </div>
-                </div>
+                </Collapsible>
               )}
               {error && (
                 <p className="rounded-xl border border-destructive/20 bg-destructive/5 px-3 py-2 text-sm text-destructive">

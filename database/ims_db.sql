@@ -46,12 +46,10 @@ CREATE TABLE IF NOT EXISTS reports (
   report_date DATE NOT NULL,
   content TEXT NOT NULL,
   image_data MEDIUMTEXT DEFAULT NULL,
-  status ENUM('pending', 'approved', 'needs_revision') NOT NULL DEFAULT 'pending',
-  reviewer_id INT UNSIGNED DEFAULT NULL,
-  comments TEXT DEFAULT NULL,
+  status ENUM('pending') NOT NULL DEFAULT 'pending',
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  CONSTRAINT fk_reports_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
-  CONSTRAINT fk_reports_reviewer FOREIGN KEY (reviewer_id) REFERENCES users(id) ON DELETE SET NULL
+  UNIQUE KEY uniq_reports_user_type_date (user_id, type, report_date),
+  CONSTRAINT fk_reports_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
 
 CREATE TABLE IF NOT EXISTS intern_schedules (
@@ -71,10 +69,22 @@ CREATE TABLE IF NOT EXISTS messages (
   sender_id INT UNSIGNED NOT NULL,
   receiver_id INT UNSIGNED NOT NULL,
   content TEXT NOT NULL,
+  attachment_name VARCHAR(255) DEFAULT NULL,
+  attachment_type VARCHAR(120) DEFAULT NULL,
+  attachment_data MEDIUMTEXT DEFAULT NULL,
   is_read TINYINT(1) NOT NULL DEFAULT 0,
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   CONSTRAINT fk_messages_sender FOREIGN KEY (sender_id) REFERENCES users(id) ON DELETE CASCADE,
   CONSTRAINT fk_messages_receiver FOREIGN KEY (receiver_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS message_favorites (
+  user_id INT UNSIGNED NOT NULL,
+  favorite_user_id INT UNSIGNED NOT NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (user_id, favorite_user_id),
+  CONSTRAINT fk_message_favorites_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+  CONSTRAINT fk_message_favorites_target FOREIGN KEY (favorite_user_id) REFERENCES users(id) ON DELETE CASCADE
 );
 
 -- Optional starter admin account:

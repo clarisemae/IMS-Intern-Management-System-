@@ -26,7 +26,7 @@ interface SupervisorIntern {
     isActive: boolean;
   } | null;
   scheduleStatus: {
-    code: 'early' | 'on-time' | 'late' | 'missed' | 'no-schedule';
+    code: 'early' | 'on-time' | 'grace' | 'late' | 'missed' | 'no-schedule';
     label: string;
     detail: string;
   };
@@ -79,9 +79,27 @@ export function SupervisorDashboard() {
   }
 
   const stats = [
-    { label: 'Active Interns', value: data.stats.activeInterns, icon: Users, color: 'text-purple-600' },
-    { label: 'Tasks Completed', value: data.stats.tasksCompleted, icon: CheckCircle2, color: 'text-green-600' },
-    { label: 'Avg. Performance', value: `${data.stats.avgPerformance}%`, icon: TrendingUp, color: 'text-purple-600' },
+    {
+      label: 'Active Interns',
+      value: data.stats.activeInterns,
+      helper: data.stats.activeInterns > 0 ? 'Interns currently under your view' : 'No interns assigned yet',
+      icon: Users,
+      color: 'text-purple-600',
+    },
+    {
+      label: 'Tasks Completed',
+      value: data.stats.tasksCompleted,
+      helper: data.stats.tasksCompleted > 0 ? 'Completed tasks across your team' : 'No completed tasks yet',
+      icon: CheckCircle2,
+      color: 'text-green-600',
+    },
+    {
+      label: 'Avg. Performance',
+      value: `${data.stats.avgPerformance}%`,
+      helper: data.stats.activeInterns > 0 ? 'Based on hours and task progress' : 'Performance will appear once interns are active',
+      icon: TrendingUp,
+      color: 'text-purple-600',
+    },
   ];
 
   const alertIntern = data.interns.reduce<SupervisorIntern | null>((current, intern) => {
@@ -108,6 +126,7 @@ export function SupervisorDashboard() {
                   <div>
                     <p className="text-sm text-gray-600">{stat.label}</p>
                     <p className="mt-2 text-3xl font-semibold">{stat.value}</p>
+                    <p className="mt-1 text-xs text-muted-foreground">{stat.helper}</p>
                   </div>
                   <div className={`rounded-full bg-gray-50 p-3 ${stat.color}`}>
                     <Icon className="h-6 w-6" />
@@ -134,7 +153,13 @@ export function SupervisorDashboard() {
             <CardContent>
               <div className="space-y-4">
                 {data.interns.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">No active interns yet.</p>
+                  <div className="rounded-2xl border border-dashed bg-muted/20 px-6 py-10 text-center">
+                    <Users className="mx-auto mb-3 h-10 w-10 text-muted-foreground/50" />
+                    <p className="text-sm font-medium">No active interns yet</p>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      Intern progress cards will appear here once active interns are added to the system.
+                    </p>
+                  </div>
                 ) : data.interns.map((intern) => (
                   <div key={intern.id} className="rounded-lg border p-4 transition-colors hover:bg-gray-50">
                     <div className="flex items-start gap-4">
@@ -160,6 +185,8 @@ export function SupervisorDashboard() {
                                 ? 'destructive'
                                 : intern.scheduleStatus.code === 'on-time'
                                   ? 'default'
+                                  : intern.scheduleStatus.code === 'grace'
+                                    ? 'outline'
                                   : 'secondary'
                             }
                           >
@@ -197,7 +224,13 @@ export function SupervisorDashboard() {
             <CardContent>
               <div className="space-y-3">
                 {data.upcomingDeadlines.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">No upcoming deadlines.</p>
+                  <div className="rounded-2xl border border-dashed bg-muted/20 px-5 py-8 text-center">
+                    <Clock className="mx-auto mb-3 h-8 w-8 text-muted-foreground/50" />
+                    <p className="text-sm font-medium">No upcoming deadlines</p>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      Upcoming task due dates will appear here once tasks are assigned with deadlines.
+                    </p>
+                  </div>
                 ) : data.upcomingDeadlines.map((item) => (
                   <div key={item.id} className="flex items-center justify-between rounded-lg border p-3">
                     <div className="flex-1">
@@ -237,7 +270,13 @@ export function SupervisorDashboard() {
                   </div>
                 )}
                 {data.scheduleAlerts.length === 0 && !alertIntern && (
-                  <p className="text-sm text-muted-foreground">No alerts right now.</p>
+                  <div className="rounded-2xl border border-dashed bg-muted/20 px-5 py-8 text-center">
+                    <AlertTriangle className="mx-auto mb-3 h-8 w-8 text-muted-foreground/50" />
+                    <p className="text-sm font-medium">No alerts right now</p>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      Late reminders, missed schedules, and task warnings will appear here when attention is needed.
+                    </p>
+                  </div>
                 )}
               </div>
             </CardContent>

@@ -38,15 +38,15 @@ export function LoginPage() {
         <div className="hidden rounded-3xl border border-white/10 bg-white/5 p-8 text-white shadow-2xl backdrop-blur lg:flex lg:flex-col lg:justify-between">
           <div className="space-y-5">
             <Badge className="w-fit rounded-full border border-white/15 bg-white/10 px-3 py-1 text-white hover:bg-white/10">
-              Shadcn UI workspace
+              REGRIS internship system
             </Badge>
             <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-white text-slate-950 shadow-lg">
               <Building2 className="h-7 w-7" />
             </div>
             <div className="space-y-3">
-              <h1 className="text-4xl font-semibold tracking-tight">Intern operations, redesigned for a cleaner shadcn flow.</h1>
+              <h1 className="text-4xl font-semibold tracking-tight">Intern operations in one clear, focused system.</h1>
               <p className="max-w-xl text-base leading-7 text-slate-300">
-                Monitor attendance, reports, tasks, and team performance from one focused workspace with calmer surfaces and clearer hierarchy.
+                Manage attendance, daily logs, tasks, and team coordination from one organized workspace built for internship operations.
               </p>
             </div>
           </div>
@@ -58,8 +58,8 @@ export function LoginPage() {
             </div>
             <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
               <Sparkles className="mb-3 h-5 w-5 text-cyan-300" />
-              <p className="text-sm font-medium">Component-driven UI</p>
-              <p className="mt-1 text-sm text-slate-300">Built on reusable cards, badges, inputs, and actions from the shadcn stack.</p>
+              <p className="text-sm font-medium">Daily operations</p>
+              <p className="mt-1 text-sm text-slate-300">Keep attendance, daily logs, tasks, and communication in one connected system.</p>
             </div>
           </div>
         </div>
@@ -77,20 +77,25 @@ export function LoginPage() {
             <div>
               <CardTitle className="text-3xl tracking-tight">Welcome back</CardTitle>
               <CardDescription className="mt-2 text-sm leading-6">
-                Sign in to access the REGRIS internship workspace and continue where your team left off.
+                Sign in to access the REGRIS internship management system and continue your work for the day.
               </CardDescription>
             </div>
           </CardHeader>
           <CardContent className="space-y-6">
-            <form onSubmit={handleSubmit} className="space-y-4">
+            <form onSubmit={handleSubmit} className="space-y-4" autoComplete="on">
               <div className="space-y-2">
                 <Label htmlFor="email">Email</Label>
                 <Input
                   id="email"
+                  name="email"
                   type="email"
                   placeholder="email@regris.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
+                  autoComplete="username"
+                  autoCapitalize="none"
+                  autoCorrect="off"
+                  inputMode="email"
                   required
                 />
               </div>
@@ -98,10 +103,12 @@ export function LoginPage() {
                 <Label htmlFor="password">Password</Label>
                 <Input
                   id="password"
+                  name="password"
                   type="password"
                   placeholder="Enter your password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
+                  autoComplete="current-password"
                   required
                 />
               </div>
@@ -113,10 +120,10 @@ export function LoginPage() {
               </Button>
             </form>
             <div className="rounded-2xl border bg-muted/40 p-4">
-              <p className="text-sm font-medium">Local API sign-in</p>
+              <p className="text-sm font-medium">Local system sign-in</p>
               <div className="mt-3 space-y-2 text-sm text-muted-foreground">
                 <p>Use an email and password that exist in your local MariaDB `users` table.</p>
-                <p className="pt-1 text-xs">Role-based dashboard access now comes from your Express API instead of Supabase metadata.</p>
+                <p className="pt-1 text-xs">Role-based access is managed by your local Express API and MariaDB database.</p>
               </div>
             </div>
           </CardContent>
