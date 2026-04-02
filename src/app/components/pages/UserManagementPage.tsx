@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/app/components/ui/tabs';
 import { Checkbox } from '@/app/components/ui/checkbox';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/app/components/ui/collapsible';
-import { UserPlus, Search, MoreVertical, Edit, Trash2, Loader2, ChevronDown } from 'lucide-react';
+import { UserPlus, Search, MoreVertical, Edit, Trash2, Loader2, ChevronDown, Building2, Plus } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/app/components/ui/dropdown-menu';
 import { apiRequest } from '@/lib/api';
 
@@ -37,6 +37,11 @@ interface User {
   schedule?: ScheduleEntry[];
 }
 
+interface Department {
+  id: number;
+  name: string;
+}
+
 interface UserFormState {
   name: string;
   email: string;
@@ -52,6 +57,8 @@ interface BatchScheduleState {
   startTime: string;
   endTime: string;
 }
+
+type UserSortOption = 'name-asc' | 'name-desc' | 'department-asc' | 'department-desc';
 
 const weekdayDays = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'];
 
@@ -78,13 +85,19 @@ const initialFormState: UserFormState = {
 
 export function UserManagementPage() {
   const [users, setUsers] = useState<User[]>([]);
+  const [departments, setDepartments] = useState<Department[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
+  const [sortBy, setSortBy] = useState<UserSortOption>('name-asc');
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const [isDepartmentDialogOpen, setIsDepartmentDialogOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [formData, setFormData] = useState<UserFormState>(initialFormState);
+  const [departmentName, setDepartmentName] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [isSavingDepartment, setIsSavingDepartment] = useState(false);
   const [error, setError] = useState('');
+  const [departmentError, setDepartmentError] = useState('');
   const [batchSchedule, setBatchSchedule] = useState<BatchScheduleState>({
     startTime: '08:00',
     endTime: '17:00',
@@ -106,8 +119,17 @@ export function UserManagementPage() {
     }
   };
 
+  const loadDepartments = async () => {
+    try {
+      const data = await apiRequest<{ departments: Department[] }>('/users/departments');
+      setDepartments(data.departments);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load departments.');
+    }
+  };
+
   useEffect(() => {
-    loadUsers();
+    void Promise.all([loadUsers(), loadDepartments()]);
   }, []);
 
   const filteredUsers = useMemo(() => {
@@ -128,12 +150,39 @@ export function UserManagementPage() {
     );
   }, [searchQuery, users]);
 
+  const sortedUsers = useMemo(() => {
+    const usersToSort = [...filteredUsers];
+
+    usersToSort.sort((left, right) => {
+      const leftDepartment = (left.department ?? '').trim();
+      const rightDepartment = (right.department ?? '').trim();
+
+      switch (sortBy) {
+        case 'name-desc':
+          return right.name.localeCompare(left.name);
+        case 'department-asc': {
+          const departmentComparison = leftDepartment.localeCompare(rightDepartment);
+          return departmentComparison !== 0 ? departmentComparison : left.name.localeCompare(right.name);
+        }
+        case 'department-desc': {
+          const departmentComparison = rightDepartment.localeCompare(leftDepartment);
+          return departmentComparison !== 0 ? departmentComparison : left.name.localeCompare(right.name);
+        }
+        case 'name-asc':
+        default:
+          return left.name.localeCompare(right.name);
+      }
+    });
+
+    return usersToSort;
+  }, [filteredUsers, sortBy]);
+
   const filterUsersByRole = (role: string) => {
     if (role === 'all') {
-      return filteredUsers;
+      return sortedUsers;
     }
 
-    return filteredUsers.filter((user) => user.role === role);
+    return sortedUsers.filter((user) => user.role === role);
   };
 
   const getRoleBadgeVariant = (role: string) => {
@@ -193,6 +242,22 @@ export function UserManagementPage() {
     setError('');
   };
 
+  const openDepartmentDialog = () => {
+    setDepartmentName('');
+    setDepartmentError('');
+    setIsDepartmentDialogOpen(true);
+  };
+
+  const closeDepartmentDialog = () => {
+    if (isSavingDepartment) {
+      return;
+    }
+
+    setDepartmentName('');
+    setDepartmentError('');
+    setIsDepartmentDialogOpen(false);
+  };
+
   const applyBatchSchedule = () => {
     if (!batchSelectedDays.length) {
       setError('Select at least one day for the batch schedule update.');
@@ -244,7 +309,7 @@ export function UserManagementPage() {
       }
 
       closeDialog();
-      await loadUsers();
+      await Promise.all([loadUsers(), loadDepartments()]);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to save user.');
     } finally {
@@ -261,9 +326,31 @@ export function UserManagementPage() {
 
     try {
       await apiRequest(`/users/${user.id}`, { method: 'DELETE' });
-      await loadUsers();
+      await Promise.all([loadUsers(), loadDepartments()]);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to delete user.');
+    }
+  };
+
+  const handleCreateDepartment = async () => {
+    setIsSavingDepartment(true);
+    setDepartmentError('');
+
+    try {
+      const data = await apiRequest<{ department: Department }>('/users/departments', {
+        method: 'POST',
+        body: JSON.stringify({ name: departmentName }),
+      });
+
+      setDepartments((current) =>
+        [...current, data.department].sort((left, right) => left.name.localeCompare(right.name)),
+      );
+      setFormData((current) => ({ ...current, department: data.department.name }));
+      closeDepartmentDialog();
+    } catch (err) {
+      setDepartmentError(err instanceof Error ? err.message : 'Failed to create department.');
+    } finally {
+      setIsSavingDepartment(false);
     }
   };
 
@@ -281,7 +368,7 @@ export function UserManagementPage() {
         }),
       });
 
-      await loadUsers();
+      await Promise.all([loadUsers(), loadDepartments()]);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to update user status.');
     }
@@ -294,10 +381,16 @@ export function UserManagementPage() {
           <h1 className="text-3xl font-semibold">User Management</h1>
           <p className="mt-1 text-gray-600">Manage system users and permissions</p>
         </div>
-        <Button onClick={openCreateDialog}>
-          <UserPlus className="mr-2 h-4 w-4" />
-          Add User
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" onClick={openDepartmentDialog}>
+            <Building2 className="mr-2 h-4 w-4" />
+            Add Department
+          </Button>
+          <Button onClick={openCreateDialog}>
+            <UserPlus className="mr-2 h-4 w-4" />
+            Add User
+          </Button>
+        </div>
         <Dialog open={isCreateDialogOpen} onOpenChange={(open) => (!open ? closeDialog() : setIsCreateDialogOpen(true))}>
           <DialogContent>
             <DialogHeader>
@@ -356,12 +449,27 @@ export function UserManagementPage() {
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="department">Department</Label>
-                  <Input
-                    id="department"
-                    placeholder="Engineering"
-                    value={formData.department}
-                    onChange={(e) => setFormData((current) => ({ ...current, department: e.target.value }))}
-                  />
+                  <Select
+                    value={formData.department || '__unassigned__'}
+                    onValueChange={(value) =>
+                      setFormData((current) => ({
+                        ...current,
+                        department: value === '__unassigned__' ? '' : value,
+                      }))
+                    }
+                  >
+                    <SelectTrigger id="department">
+                      <SelectValue placeholder="Select department" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__unassigned__">No department</SelectItem>
+                      {departments.map((department) => (
+                        <SelectItem key={department.id} value={department.name}>
+                          {department.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="birthdate">Birthdate</Label>
@@ -505,9 +613,43 @@ export function UserManagementPage() {
             </div>
           </DialogContent>
         </Dialog>
+        <Dialog open={isDepartmentDialogOpen} onOpenChange={(open) => (!open ? closeDepartmentDialog() : setIsDepartmentDialogOpen(true))}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Add Department</DialogTitle>
+              <DialogDescription>Create a department option for new and existing users.</DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4 py-4">
+              <div className="space-y-2">
+                <Label htmlFor="departmentName">Department Name</Label>
+                <Input
+                  id="departmentName"
+                  placeholder="Engineering"
+                  value={departmentName}
+                  onChange={(e) => setDepartmentName(e.target.value)}
+                />
+              </div>
+              {departmentError && (
+                <p className="rounded-xl border border-destructive/20 bg-destructive/5 px-3 py-2 text-sm text-destructive">
+                  {departmentError}
+                </p>
+              )}
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={closeDepartmentDialog} disabled={isSavingDepartment}>
+                Cancel
+              </Button>
+              <Button onClick={handleCreateDepartment} disabled={isSavingDepartment || !departmentName.trim()}>
+                {isSavingDepartment && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                <Plus className="mr-2 h-4 w-4" />
+                Save Department
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
 
-      {error && !isCreateDialogOpen && (
+      {error && !isCreateDialogOpen && !isDepartmentDialogOpen && (
         <p className="rounded-xl border border-destructive/20 bg-destructive/5 px-4 py-3 text-sm text-destructive">
           {error}
         </p>
@@ -547,14 +689,27 @@ export function UserManagementPage() {
               <CardTitle>Users</CardTitle>
               <CardDescription>Manage all system users</CardDescription>
             </div>
-            <div className="relative w-64">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-              <Input
-                placeholder="Search users..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-9"
-              />
+            <div className="flex items-center gap-2">
+              <Select value={sortBy} onValueChange={(value: UserSortOption) => setSortBy(value)}>
+                <SelectTrigger className="w-[180px]">
+                  <SelectValue placeholder="Sort users" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="name-asc">Name A-Z</SelectItem>
+                  <SelectItem value="name-desc">Name Z-A</SelectItem>
+                  <SelectItem value="department-asc">Department A-Z</SelectItem>
+                  <SelectItem value="department-desc">Department Z-A</SelectItem>
+                </SelectContent>
+              </Select>
+              <div className="relative w-64">
+                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                <Input
+                  placeholder="Search users..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-9"
+                />
+              </div>
             </div>
           </div>
         </CardHeader>

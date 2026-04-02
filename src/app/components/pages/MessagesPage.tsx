@@ -6,7 +6,6 @@ import { Button } from '@/app/components/ui/button';
 import { Avatar, AvatarFallback } from '@/app/components/ui/avatar';
 import { Badge } from '@/app/components/ui/badge';
 import { ScrollArea } from '@/app/components/ui/scroll-area';
-import { Textarea } from '@/app/components/ui/textarea';
 import { Send, Search, Paperclip, MoreVertical, Loader2, Star, Bold, Italic, List, FileText, X } from 'lucide-react';
 import { cn } from '@/app/components/ui/utils';
 import { apiRequest } from '@/lib/api';
@@ -130,6 +129,63 @@ async function fileToAttachment(file: File): Promise<MessageAttachment> {
   });
 }
 
+function htmlToMarkdown(html: string) {
+  const container = document.createElement('div');
+  container.innerHTML = html;
+
+  const walk = (node: Node): string => {
+    if (node.nodeType === Node.TEXT_NODE) {
+      return node.textContent ?? '';
+    }
+
+    if (node.nodeType !== Node.ELEMENT_NODE) {
+      return '';
+    }
+
+    const element = node as HTMLElement;
+    const tag = element.tagName.toLowerCase();
+
+    if (tag === 'br') {
+      return '\n';
+    }
+
+    if (tag === 'strong' || tag === 'b') {
+      return `**${Array.from(element.childNodes).map(walk).join('')}**`;
+    }
+
+    if (tag === 'em' || tag === 'i') {
+      return `*${Array.from(element.childNodes).map(walk).join('')}*`;
+    }
+
+    if (tag === 'ul') {
+      return Array.from(element.children)
+        .map((child) => `- ${walk(child).trim()}`)
+        .join('\n');
+    }
+
+    if (tag === 'li') {
+      return Array.from(element.childNodes).map(walk).join('').trim();
+    }
+
+    if (tag === 'div' || tag === 'p') {
+      const content = Array.from(element.childNodes).map(walk).join('');
+      return content ? `${content}\n` : '';
+    }
+
+    return Array.from(element.childNodes).map(walk).join('');
+  };
+
+  return Array.from(container.childNodes)
+    .map(walk)
+    .join('')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+}
+
+function isComposerEmpty(html: string) {
+  return !htmlToMarkdown(html).trim();
+}
+
 export function MessagesPage() {
   const { user } = useAuth();
   const { refreshNotifications } = useMessageNotifications();
@@ -137,7 +193,7 @@ export function MessagesPage() {
   const [selectedConversation, setSelectedConversation] = useState<number | null>(null);
   const [selectedConversationInfo, setSelectedConversationInfo] = useState<Conversation | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
-  const [messageText, setMessageText] = useState('');
+  const [composerHtml, setComposerHtml] = useState('');
   const [pendingAttachment, setPendingAttachment] = useState<MessageAttachment | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [isLoadingConversations, setIsLoadingConversations] = useState(true);
@@ -146,7 +202,7 @@ export function MessagesPage() {
   const [isTogglingFavorite, setIsTogglingFavorite] = useState(false);
   const [error, setError] = useState('');
   const fileInputRef = useRef<HTMLInputElement | null>(null);
-  const composerRef = useRef<HTMLTextAreaElement | null>(null);
+  const composerRef = useRef<HTMLDivElement | null>(null);
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
 
   const getInitials = (name: string) =>
@@ -212,25 +268,16 @@ export function MessagesPage() {
     );
   }, [conversations, searchQuery]);
 
-  const insertFormatting = (before: string, after = before, placeholder = 'text') => {
-    const textarea = composerRef.current;
+  const applyRichFormat = (command: 'bold' | 'italic' | 'insertUnorderedList') => {
+    const editor = composerRef.current;
 
-    if (!textarea) {
-      setMessageText((current) => `${current}${before}${placeholder}${after}`);
+    if (!editor) {
       return;
     }
 
-    const start = textarea.selectionStart ?? messageText.length;
-    const end = textarea.selectionEnd ?? messageText.length;
-    const selected = messageText.slice(start, end) || placeholder;
-    const updated = `${messageText.slice(0, start)}${before}${selected}${after}${messageText.slice(end)}`;
-    setMessageText(updated);
-
-    requestAnimationFrame(() => {
-      textarea.focus();
-      const cursorPosition = start + before.length + selected.length + after.length;
-      textarea.setSelectionRange(cursorPosition, cursorPosition);
-    });
+    editor.focus();
+    document.execCommand(command);
+    setComposerHtml(editor.innerHTML);
   };
 
   const handleSelectFile = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -256,7 +303,9 @@ export function MessagesPage() {
   };
 
   const handleSendMessage = async () => {
-    if ((!messageText.trim() && !pendingAttachment) || !selectedConversation) return;
+    const markdownContent = htmlToMarkdown(composerHtml);
+
+    if ((!markdownContent.trim() && !pendingAttachment) || !selectedConversation) return;
 
     setIsSending(true);
     setError('');
@@ -265,13 +314,16 @@ export function MessagesPage() {
         method: 'POST',
         body: JSON.stringify({
           receiverId: selectedConversation,
-          content: messageText,
+          content: markdownContent,
           attachment: pendingAttachment,
         }),
       });
 
       setMessages((current) => [...current, data.message]);
-      setMessageText('');
+      setComposerHtml('');
+      if (composerRef.current) {
+        composerRef.current.innerHTML = '';
+      }
       setPendingAttachment(null);
       await loadConversations();
       await refreshNotifications({ silent: true });
@@ -341,7 +393,7 @@ export function MessagesPage() {
     }
   };
 
-  const handleKeyPress = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+  const handleKeyPress = (e: React.KeyboardEvent<HTMLDivElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       handleSendMessage();
@@ -573,15 +625,15 @@ export function MessagesPage() {
                   </p>
                 )}
                 <div className="flex flex-wrap items-center gap-2">
-                  <Button type="button" variant="outline" size="sm" onClick={() => insertFormatting('**', '**', 'bold text')}>
+                  <Button type="button" variant="outline" size="sm" onClick={() => applyRichFormat('bold')}>
                     <Bold className="mr-2 h-4 w-4" />
                     Bold
                   </Button>
-                  <Button type="button" variant="outline" size="sm" onClick={() => insertFormatting('*', '*', 'italic text')}>
+                  <Button type="button" variant="outline" size="sm" onClick={() => applyRichFormat('italic')}>
                     <Italic className="mr-2 h-4 w-4" />
                     Italic
                   </Button>
-                  <Button type="button" variant="outline" size="sm" onClick={() => insertFormatting('\n- ', '', 'list item')}>
+                  <Button type="button" variant="outline" size="sm" onClick={() => applyRichFormat('insertUnorderedList')}>
                     <List className="mr-2 h-4 w-4" />
                     List
                   </Button>
@@ -611,17 +663,24 @@ export function MessagesPage() {
                 )}
 
                 <div className="flex items-end gap-2">
-                  <Textarea
+                  <div className="relative flex-1">
+                    {isComposerEmpty(composerHtml) && (
+                      <span className="pointer-events-none absolute left-3 top-3 text-sm text-muted-foreground">
+                        Type a message...
+                      </span>
+                    )}
+                    <div
                     ref={composerRef}
-                    placeholder="Type a message..."
-                    value={messageText}
-                    onChange={(e) => setMessageText(e.target.value)}
+                    contentEditable
+                    suppressContentEditableWarning
+                    onInput={(e) => setComposerHtml((e.target as HTMLDivElement).innerHTML)}
                     onKeyDown={handleKeyPress}
-                    className="min-h-[88px]"
+                    className="min-h-[88px] rounded-md border border-input bg-input-background px-3 py-2 text-sm outline-none transition-[color,box-shadow] focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 [&_ul]:my-1 [&_ul]:list-disc [&_ul]:pl-5"
                   />
+                  </div>
                   <Button
                     onClick={handleSendMessage}
-                    disabled={(!messageText.trim() && !pendingAttachment) || isSending}
+                    disabled={(isComposerEmpty(composerHtml) && !pendingAttachment) || isSending}
                     className="h-11 flex-shrink-0"
                   >
                     {isSending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}
@@ -629,7 +688,7 @@ export function MessagesPage() {
                   </Button>
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  Use <code className="rounded bg-muted px-1 py-0.5">**bold**</code>, <code className="rounded bg-muted px-1 py-0.5">*italic*</code>, or <code className="rounded bg-muted px-1 py-0.5">- list item</code> formatting.
+                  Bold, italic, and list formatting will be sent as styled message content.
                 </p>
               </div>
             </div>

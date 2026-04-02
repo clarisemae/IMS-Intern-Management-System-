@@ -42,6 +42,24 @@ async function ensureInternSchedulesTable() {
   );
 }
 
+async function ensureDepartmentsTable() {
+  await db.execute(
+    `CREATE TABLE IF NOT EXISTS departments (
+      id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+      name VARCHAR(120) NOT NULL,
+      created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE KEY uniq_department_name (name)
+    )`,
+  );
+
+  await db.execute(
+    `INSERT IGNORE INTO departments (name)
+     SELECT DISTINCT TRIM(department)
+     FROM users
+     WHERE department IS NOT NULL AND TRIM(department) <> ''`,
+  );
+}
+
 async function ensureUniqueDailyReports() {
   await db.execute(
     `DELETE duplicate_reports
@@ -125,6 +143,7 @@ async function ensureMessageEnhancements() {
 export async function testDatabaseConnection() {
   const connection = await db.getConnection();
   connection.release();
+  await ensureDepartmentsTable();
   await ensureInternSchedulesTable();
   await ensureReportImageColumn();
   await ensureUniqueDailyReports();

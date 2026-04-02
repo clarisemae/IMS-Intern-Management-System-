@@ -18,6 +18,51 @@ async function mapUserRow(row: any) {
   };
 }
 
+export async function getDepartments(_req: Request, res: Response) {
+  const [rows] = await db.query(
+    `SELECT id, name
+     FROM departments
+     ORDER BY name ASC`,
+  );
+
+  return res.json({
+    departments: (rows as any[]).map((row) => ({
+      id: row.id,
+      name: row.name,
+    })),
+  });
+}
+
+export async function createDepartment(req: Request, res: Response) {
+  const rawName = typeof req.body?.name === "string" ? req.body.name : "";
+  const name = rawName.trim();
+
+  if (!name) {
+    return res.status(400).json({ message: "Department name is required." });
+  }
+
+  try {
+    const [result] = await db.execute<ResultSetHeader>(
+      `INSERT INTO departments (name)
+       VALUES (?)`,
+      [name],
+    );
+
+    return res.status(201).json({
+      department: {
+        id: result.insertId,
+        name,
+      },
+    });
+  } catch (error: any) {
+    if (error?.code === "ER_DUP_ENTRY") {
+      return res.status(409).json({ message: "That department already exists." });
+    }
+
+    throw error;
+  }
+}
+
 export async function getUsers(_req: Request, res: Response) {
   const [rows] = await db.query(
     `SELECT id, full_name, email, role, status, department, birthdate, created_at
