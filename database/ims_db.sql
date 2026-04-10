@@ -21,6 +21,8 @@ CREATE TABLE IF NOT EXISTS attendance (
   time_out DATETIME DEFAULT NULL,
   total_hours DECIMAL(5,2) DEFAULT NULL,
   status ENUM('present', 'late', 'absent') NOT NULL DEFAULT 'present',
+  supervisor_remark ENUM('none', 'early_out', 'half_day', 'absent') NOT NULL DEFAULT 'none',
+  remark_note TEXT DEFAULT NULL,
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   CONSTRAINT fk_attendance_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );

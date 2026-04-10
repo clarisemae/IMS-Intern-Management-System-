@@ -14,6 +14,22 @@ function formatRelativeTime(input: Date | string | null) {
   return `${days} day${days === 1 ? "" : "s"} ago`;
 }
 
+function normalizeSupervisorRemark(value: string | null | undefined) {
+  if (!value || value === "none") {
+    return null;
+  }
+
+  if (value === "early_out") {
+    return "early-out";
+  }
+
+  if (value === "half_day") {
+    return "half-day";
+  }
+
+  return value;
+}
+
 export async function getDashboardOverview(req: Request, res: Response) {
   if (!req.user) {
     return res.status(401).json({ message: "Authentication is required." });
@@ -123,6 +139,9 @@ export async function getDashboardOverview(req: Request, res: Response) {
   }
 
   if (req.user.role === "supervisor") {
+    const departmentFilter = req.user.department ? " AND u.department = ?" : "";
+    const departmentParams = req.user.department ? [req.user.department] : [];
+
     const [internRows] = await db.query(
       `SELECT
          u.id,
@@ -146,9 +165,9 @@ export async function getDashboardOverview(req: Request, res: Response) {
          WHERE assigned_by = ?
          GROUP BY assigned_to
        ) task_stats ON task_stats.assigned_to = u.id
-       WHERE u.role = 'intern' AND u.status = 'active'
+       WHERE u.role = 'intern' AND u.status = 'active'${departmentFilter}
        ORDER BY u.full_name ASC`,
-      [req.user.id],
+      [req.user.id, ...departmentParams],
     );
     const [deadlineRows] = await db.query(
       `SELECT t.id, t.title, u.full_name AS intern, t.deadline
@@ -166,7 +185,7 @@ export async function getDashboardOverview(req: Request, res: Response) {
       const todaySchedule = scheduleEntries.find((entry) => entry.day === todayWeekDay) ?? null;
 
       const [todayAttendanceRows] = await db.query(
-        `SELECT time_in
+        `SELECT id, attendance_date, time_in, time_out, total_hours, status, supervisor_remark, remark_note
          FROM attendance
          WHERE user_id = ? AND attendance_date = CURDATE()
          ORDER BY id DESC
@@ -187,7 +206,20 @@ export async function getDashboardOverview(req: Request, res: Response) {
       pendingTasks: Number(row.pending_tasks ?? 0),
       attendance: Math.min(100, Number(((Number(row.hours_completed ?? 0) / 200) * 100).toFixed(0))),
       schedule: todaySchedule,
+      weeklySchedule: scheduleEntries,
       scheduleStatus,
+      todayAttendance: todayAttendance
+        ? {
+            id: todayAttendance.id,
+            date: String(todayAttendance.attendance_date).slice(0, 10),
+            timeIn: todayAttendance.time_in,
+            timeOut: todayAttendance.time_out,
+            totalHours: todayAttendance.total_hours != null ? Number(todayAttendance.total_hours) : null,
+            attendanceStatus: todayAttendance.status,
+            supervisorRemark: normalizeSupervisorRemark(todayAttendance.supervisor_remark),
+            remarkNote: todayAttendance.remark_note ?? null,
+          }
+        : null,
     };
     }));
     const totalCompleted = interns.reduce((sum, intern) => sum + intern.tasksCompleted, 0);

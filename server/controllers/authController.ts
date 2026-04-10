@@ -1,7 +1,7 @@
 import { Request, Response } from "express";
 import jwt from "jsonwebtoken";
 import { db } from "../config/db";
-import { comparePassword } from "../utils/password";
+import { comparePassword, hashPassword } from "../utils/password";
 
 function createToken(userId: number) {
   return jwt.sign(
@@ -53,6 +53,75 @@ export async function login(req: Request, res: Response) {
 
 export async function me(req: Request, res: Response) {
   return res.json({ user: req.user });
+}
+
+export async function updateProfile(req: Request, res: Response) {
+  const userId = req.user?.id;
+  const {
+    name,
+    email,
+    department,
+    birthdate,
+    password,
+  } = req.body ?? {};
+
+  if (!userId) {
+    return res.status(401).json({ message: "Authentication is required." });
+  }
+
+  if (!name || !email) {
+    return res.status(400).json({ message: "Name and email are required." });
+  }
+
+  try {
+    if (password) {
+      const passwordHash = await hashPassword(password);
+      await db.execute(
+        `UPDATE users
+         SET full_name = ?, email = ?, department = ?, birthdate = ?, password_hash = ?
+         WHERE id = ?`,
+        [name, email, department || null, birthdate || null, passwordHash, userId],
+      );
+    } else {
+      await db.execute(
+        `UPDATE users
+         SET full_name = ?, email = ?, department = ?, birthdate = ?
+         WHERE id = ?`,
+        [name, email, department || null, birthdate || null, userId],
+      );
+    }
+  } catch (error: any) {
+    if (error?.code === "ER_DUP_ENTRY") {
+      return res.status(409).json({ message: "A user with that email already exists." });
+    }
+
+    throw error;
+  }
+
+  const [rows] = await db.query(
+    `SELECT id, full_name, email, role, department, birthdate
+     FROM users
+     WHERE id = ?
+     LIMIT 1`,
+    [userId],
+  );
+
+  const updatedUser = (rows as any[])[0];
+
+  if (!updatedUser) {
+    return res.status(404).json({ message: "User not found." });
+  }
+
+  return res.json({
+    user: {
+      id: updatedUser.id,
+      name: updatedUser.full_name,
+      email: updatedUser.email,
+      role: updatedUser.role,
+      department: updatedUser.department,
+      birthdate: updatedUser.birthdate,
+    },
+  });
 }
 
 export async function logout(_req: Request, res: Response) {

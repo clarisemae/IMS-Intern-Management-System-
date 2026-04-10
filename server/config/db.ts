@@ -140,9 +140,41 @@ async function ensureMessageEnhancements() {
   );
 }
 
+async function ensureAttendanceEnhancements() {
+  const [remarkRows] = await db.query(
+    `SELECT 1
+     FROM INFORMATION_SCHEMA.COLUMNS
+     WHERE TABLE_SCHEMA = DATABASE()
+       AND TABLE_NAME = 'attendance'
+       AND COLUMN_NAME = 'supervisor_remark'
+     LIMIT 1`,
+  );
+
+  if ((remarkRows as any[]).length === 0) {
+    await db.execute(
+      `ALTER TABLE attendance
+       ADD COLUMN supervisor_remark ENUM('none', 'early_out', 'half_day', 'absent') NOT NULL DEFAULT 'none' AFTER status`,
+    );
+  }
+
+  const [noteRows] = await db.query(
+    `SELECT 1
+     FROM INFORMATION_SCHEMA.COLUMNS
+     WHERE TABLE_SCHEMA = DATABASE()
+       AND TABLE_NAME = 'attendance'
+       AND COLUMN_NAME = 'remark_note'
+     LIMIT 1`,
+  );
+
+  if ((noteRows as any[]).length === 0) {
+    await db.execute(`ALTER TABLE attendance ADD COLUMN remark_note TEXT NULL AFTER supervisor_remark`);
+  }
+}
+
 export async function testDatabaseConnection() {
   const connection = await db.getConnection();
   connection.release();
+  await ensureAttendanceEnhancements();
   await ensureDepartmentsTable();
   await ensureInternSchedulesTable();
   await ensureReportImageColumn();

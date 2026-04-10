@@ -205,12 +205,14 @@ export function MessagesPage() {
   const composerRef = useRef<HTMLDivElement | null>(null);
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
 
-  const getInitials = (name: string) =>
-    name
-      .split(' ')
-      .map((n) => n[0])
-      .join('')
-      .toUpperCase();
+  const getInitials = (name: string) => {
+    const parts = name.trim().split(/\s+/).filter(Boolean);
+
+    if (parts.length === 0) return '';
+    if (parts.length === 1) return parts[0][0]?.toUpperCase() ?? '';
+
+    return `${parts[0][0] ?? ''}${parts[parts.length - 1][0] ?? ''}`.toUpperCase();
+  };
 
   const loadConversations = async () => {
     setIsLoadingConversations(true);
@@ -418,7 +420,7 @@ export function MessagesPage() {
         </div>
 
         <ScrollArea className="min-h-0 flex-1">
-          <div className="p-2">
+          <div className="pb-2 pl-2 pr-0 pt-2">
             {isLoadingConversations ? (
               <div className="flex items-center justify-center py-10 text-sm text-muted-foreground">
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -442,7 +444,7 @@ export function MessagesPage() {
                   role="button"
                   tabIndex={0}
                   className={cn(
-                    'mb-2 w-full rounded-2xl border px-4 py-3 text-left transition-all',
+                    'mb-2 w-[calc(100%-10px)] rounded-2xl border px-4 py-3 text-left transition-all',
                     selectedConversation === conversation.id
                       ? 'border-primary/30 bg-primary/5 shadow-sm'
                       : 'border-transparent hover:bg-gray-50',
@@ -510,43 +512,45 @@ export function MessagesPage() {
       <div className="flex min-h-0 flex-1 flex-col bg-gray-50">
         {selectedConv ? (
           <>
-            <div className="flex items-center justify-between border-b border-gray-200 bg-white p-4">
-              <div className="flex items-center gap-3">
-                <div className="relative">
-                  <Avatar>
-                    <AvatarFallback>{getInitials(selectedConv.name)}</AvatarFallback>
-                  </Avatar>
-                  {selectedConv.online && (
-                    <div className="absolute bottom-0 right-0 h-3 w-3 rounded-full border-2 border-white bg-green-500" />
-                  )}
-                </div>
-                <div>
-                  <div className="flex items-center gap-2">
-                    <h3 className="font-medium">{selectedConv.name}</h3>
-                    {selectedConv.favorite && <Star className="h-4 w-4 fill-amber-400 text-amber-400" />}
+            <div className="bg-gray-50 p-2.5">
+              <div className="mr-5 flex items-center justify-between rounded-2xl border border-gray-200 bg-white px-4 py-3">
+                <div className="flex max-w-[calc(100%-4.875rem)] items-center gap-3 rounded-2xl pr-5">
+                  <div className="relative">
+                    <Avatar>
+                      <AvatarFallback>{getInitials(selectedConv.name)}</AvatarFallback>
+                    </Avatar>
+                    {selectedConv.online && (
+                      <div className="absolute bottom-0 right-0 h-3 w-3 rounded-full border-2 border-white bg-green-500" />
+                    )}
                   </div>
-                  <p className="text-sm text-gray-600">{selectedConv.role}</p>
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2">
+                      <h3 className="truncate font-medium">{selectedConv.name}</h3>
+                      {selectedConv.favorite && <Star className="h-4 w-4 fill-amber-400 text-amber-400" />}
+                    </div>
+                    <p className="truncate text-sm text-gray-600">{selectedConv.role}</p>
+                  </div>
                 </div>
-              </div>
-              <div className="flex items-center gap-1">
-                <Button variant="ghost" size="icon" onClick={handleToggleFavorite} disabled={isTogglingFavorite}>
-                  <Star className={cn('h-5 w-5', selectedConv.favorite && 'fill-amber-400 text-amber-400')} />
-                </Button>
-                <Button variant="ghost" size="icon">
-                  <MoreVertical className="h-5 w-5" />
-                </Button>
+                <div className="flex items-center gap-1">
+                  <Button variant="ghost" size="icon" onClick={handleToggleFavorite} disabled={isTogglingFavorite}>
+                    <Star className={cn('h-5 w-5', selectedConv.favorite && 'fill-amber-400 text-amber-400')} />
+                  </Button>
+                  <Button variant="ghost" size="icon">
+                    <MoreVertical className="h-5 w-5" />
+                  </Button>
+                </div>
               </div>
             </div>
 
             <ScrollArea className="min-h-0 flex-1 p-4">
-              <div className="mx-auto max-w-4xl space-y-4">
+              <div className={cn('mx-auto max-w-4xl', messages.length === 0 ? 'flex min-h-full flex-col justify-end' : 'space-y-4')}>
                 {isLoadingMessages ? (
                   <div className="flex items-center justify-center py-10 text-sm text-muted-foreground">
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                     Loading messages...
                   </div>
                 ) : messages.length === 0 ? (
-                  <div className="rounded-2xl border border-dashed bg-background px-6 py-12 text-center text-sm text-muted-foreground">
+                  <div className="mb-2 rounded-2xl border border-dashed bg-background px-6 py-12 text-center text-sm text-muted-foreground">
                     No messages yet. Start the conversation with a greeting, update, or shared file.
                   </div>
                 ) : (
@@ -565,42 +569,53 @@ export function MessagesPage() {
                             </AvatarFallback>
                           </Avatar>
                         )}
-                        <div
-                          className={cn(
-                            'max-w-xl rounded-2xl px-4 py-3',
-                            isOwnMessage
-                              ? 'rounded-br-sm bg-primary text-primary-foreground'
-                              : 'rounded-bl-sm border border-gray-200 bg-white',
-                          )}
-                        >
-                          {message.content && (
-                            <div className="space-y-1 text-sm">
-                              {renderFormattedText(message.content)}
-                            </div>
-                          )}
-                          {message.attachment && (
-                            <button
-                              type="button"
-                              onClick={() => downloadAttachment(message.attachment!)}
+                        <div className={cn('flex flex-col gap-1', isOwnMessage ? 'items-end' : 'items-start')}>
+                          <div className={cn('flex items-end gap-2', isOwnMessage ? 'flex-row' : 'flex-col')}>
+                            {isOwnMessage && (
+                              <p className="text-[11px] text-gray-500">
+                                {new Date(message.timestamp).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
+                              </p>
+                            )}
+                            <div
                               className={cn(
-                                'mt-3 flex w-full items-center gap-3 rounded-xl border px-3 py-3 text-left',
+                                'max-w-xl rounded-2xl px-4 py-3',
                                 isOwnMessage
-                                  ? 'border-white/20 bg-white/10 text-primary-foreground'
-                                  : 'border-gray-200 bg-gray-50',
+                                  ? 'rounded-br-sm bg-primary text-primary-foreground'
+                                  : 'rounded-bl-sm border border-gray-200 bg-white',
                               )}
                             >
-                              <FileText className="h-5 w-5" />
-                              <div className="min-w-0">
-                                <p className="truncate text-sm font-medium">{message.attachment.name}</p>
-                                <p className={cn('text-xs', isOwnMessage ? 'text-primary-foreground/70' : 'text-muted-foreground')}>
-                                  Click to download
-                                </p>
-                              </div>
-                            </button>
+                              {message.content && (
+                                <div className="space-y-1 text-sm">
+                                  {renderFormattedText(message.content)}
+                                </div>
+                              )}
+                              {message.attachment && (
+                                <button
+                                  type="button"
+                                  onClick={() => downloadAttachment(message.attachment!)}
+                                  className={cn(
+                                    'mt-3 flex w-full items-center gap-3 rounded-xl border px-3 py-3 text-left',
+                                    isOwnMessage
+                                      ? 'border-white/20 bg-white/10 text-primary-foreground'
+                                      : 'border-gray-200 bg-gray-50',
+                                  )}
+                                >
+                                  <FileText className="h-5 w-5" />
+                                  <div className="min-w-0">
+                                    <p className="truncate text-sm font-medium">{message.attachment.name}</p>
+                                    <p className={cn('text-xs', isOwnMessage ? 'text-primary-foreground/70' : 'text-muted-foreground')}>
+                                      Click to download
+                                    </p>
+                                  </div>
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                          {!isOwnMessage && (
+                            <p className="text-[11px] text-gray-500">
+                              {new Date(message.timestamp).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
+                            </p>
                           )}
-                          <p className={cn('mt-2 text-xs', isOwnMessage ? 'text-primary-foreground/70' : 'text-gray-500')}>
-                            {new Date(message.timestamp).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
-                          </p>
                         </div>
                         {isOwnMessage && (
                           <Avatar className="h-8 w-8">
@@ -687,9 +702,6 @@ export function MessagesPage() {
                     Send
                   </Button>
                 </div>
-                <p className="text-xs text-muted-foreground">
-                  Bold, italic, and list formatting will be sent as styled message content.
-                </p>
               </div>
             </div>
           </>

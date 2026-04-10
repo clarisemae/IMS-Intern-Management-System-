@@ -15,6 +15,7 @@ import { MessagesPage } from '@/app/components/pages/MessagesPage';
 import { ProfilePage } from '@/app/components/pages/ProfilePage';
 import { UserManagementPage } from '@/app/components/pages/UserManagementPage';
 import { AnalyticsPage } from '@/app/components/pages/AnalyticsPage';
+import { SupervisorInternsPage } from '@/app/components/pages/SupervisorInternsPage';
 
 function AppContent() {
   const { user, isAuthenticated, isLoading } = useAuth();
@@ -34,6 +35,7 @@ function AppContent() {
     }
 
     if (user.role === 'supervisor') {
+      allowedPages.add('interns');
       allowedPages.add('tasks');
       allowedPages.add('analytics');
     }
@@ -74,6 +76,10 @@ function AppContent() {
       case 'tasks':
         return user?.role === 'intern' || user?.role === 'supervisor' || user?.role === 'admin'
           ? <TasksPage />
+          : <div className="p-8 text-center text-gray-500">Page not available</div>;
+      case 'interns':
+        return user?.role === 'supervisor'
+          ? <SupervisorInternsPage />
           : <div className="p-8 text-center text-gray-500">Page not available</div>;
       case 'messages':
         return <MessagesPage />;

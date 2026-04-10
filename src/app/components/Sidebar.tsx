@@ -27,6 +27,7 @@ interface MenuItem {
 const menuItems: MenuItem[] = [
   { icon: LayoutDashboard, label: 'Dashboard', id: 'dashboard', roles: ['intern', 'supervisor', 'admin'] },
   { icon: Clock, label: 'Attendance', id: 'attendance', roles: ['intern'] },
+  { icon: Users, label: 'Interns', id: 'interns', roles: ['supervisor'] },
   { icon: ListTodo, label: 'Tasks', id: 'tasks', roles: ['intern', 'supervisor'] },
   { icon: MessageSquare, label: 'Messages', id: 'messages', roles: ['intern', 'supervisor', 'admin'] },
   { icon: Users, label: 'User Management', id: 'users', roles: ['admin'] },

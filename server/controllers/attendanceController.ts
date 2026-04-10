@@ -1,7 +1,7 @@
 import { Request, Response } from "express";
 import { ResultSetHeader } from "mysql2";
 import { db } from "../config/db";
-import { getScheduleStatusForNow, getUserSchedule } from "../utils/schedule";
+import { getScheduleStatusForNow, getUserSchedule, saveUserSchedule } from "../utils/schedule";
 
 function toDateOnly(value: unknown) {
   if (!value) {
@@ -32,6 +32,8 @@ function mapAttendanceRow(row: any) {
     totalHours: row.total_hours,
     status: row.time_out ? "completed" : "active",
     attendanceStatus: row.status,
+    supervisorRemark: row.supervisor_remark === "none" ? null : row.supervisor_remark,
+    remarkNote: row.remark_note ?? null,
     reportId: row.report_id ? Number(row.report_id) : null,
     reportStatus: row.report_status ? "submitted" : null,
   };
@@ -39,11 +41,67 @@ function mapAttendanceRow(row: any) {
 
 async function getOpenAttendanceForToday(userId: number) {
   const [rows] = await db.query(
-    `SELECT id, attendance_date, time_in, time_out, total_hours, status
+    `SELECT id, attendance_date, time_in, time_out, total_hours, status, supervisor_remark, remark_note
      FROM attendance
      WHERE user_id = ? AND attendance_date = CURDATE() AND time_out IS NULL
      LIMIT 1`,
     [userId],
+  );
+
+  return (rows as any[])[0] ?? null;
+}
+
+async function getLatestAttendanceForToday(userId: number) {
+  const [rows] = await db.query(
+    `SELECT id, attendance_date, time_in, time_out, total_hours, status, supervisor_remark, remark_note
+     FROM attendance
+     WHERE user_id = ? AND attendance_date = CURDATE()
+     ORDER BY id DESC
+     LIMIT 1`,
+    [userId],
+  );
+
+  return (rows as any[])[0] ?? null;
+}
+
+function getTodayWeekDayKey() {
+  return ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"][new Date().getDay()];
+}
+
+async function getAttendanceStatusForClockIn(userId: number, at = new Date()) {
+  const scheduleEntries = await getUserSchedule(userId);
+  const todaySchedule = scheduleEntries.find((entry) => entry.day === getTodayWeekDayKey()) ?? null;
+  const scheduleStatus = getScheduleStatusForNow(todaySchedule, at, at);
+
+  return scheduleStatus.code === "late" ? "late" : "present";
+}
+
+async function getManageableIntern(req: Request, internId: number) {
+  const departmentFilter = req.user?.role === "supervisor" && req.user.department
+    ? " AND department = ?"
+    : "";
+  const params = req.user?.role === "supervisor" && req.user.department
+    ? [internId, req.user.department]
+    : [internId];
+
+  const [rows] = await db.query(
+    `SELECT id, full_name, department, status
+     FROM users
+     WHERE id = ? AND role = 'intern' AND status = 'active'${departmentFilter}
+     LIMIT 1`,
+    params,
+  );
+
+  return (rows as any[])[0] ?? null;
+}
+
+async function getAttendanceRecordById(attendanceId: number) {
+  const [rows] = await db.query(
+    `SELECT id, attendance_date, time_in, time_out, total_hours, status, supervisor_remark, remark_note
+     FROM attendance
+     WHERE id = ?
+     LIMIT 1`,
+    [attendanceId],
   );
 
   return (rows as any[])[0] ?? null;
@@ -62,6 +120,8 @@ export async function getAttendance(req: Request, res: Response) {
        a.time_out,
        a.total_hours,
        a.status,
+       a.supervisor_remark,
+       a.remark_note,
        (
          SELECT r.id
          FROM reports r
@@ -96,6 +156,8 @@ export async function getAttendance(req: Request, res: Response) {
        a.time_out,
        a.total_hours,
        a.status,
+       a.supervisor_remark,
+       a.remark_note,
        (
          SELECT r.id
          FROM reports r
@@ -135,7 +197,7 @@ export async function getAttendance(req: Request, res: Response) {
   const summary = (summaryRows as any[])[0];
   const totalHours = Number(summary.total_hours ?? 0);
   const scheduleEntries = await getUserSchedule(req.user.id);
-  const todayWeekDay = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"][new Date().getDay()];
+  const todayWeekDay = getTodayWeekDayKey();
   const todaySchedule = scheduleEntries.find((entry) => entry.day === todayWeekDay) ?? null;
   const scheduleStatus = getScheduleStatusForNow(todaySchedule, todayRecord?.timeIn ?? null);
 
@@ -168,19 +230,16 @@ export async function timeIn(req: Request, res: Response) {
     return res.status(400).json({ message: "You are already clocked in for today." });
   }
 
-  const now = new Date();
-  const hours = now.getHours();
-  const minutes = now.getMinutes();
-  const attendanceStatus = hours > 9 || (hours === 9 && minutes > 0) ? "late" : "present";
+  const attendanceStatus = await getAttendanceStatusForClockIn(req.user.id);
 
   const [result] = await db.execute<ResultSetHeader>(
-    `INSERT INTO attendance (user_id, attendance_date, time_in, status)
-     VALUES (?, CURDATE(), NOW(), ?)`,
+    `INSERT INTO attendance (user_id, attendance_date, time_in, status, supervisor_remark, remark_note)
+     VALUES (?, CURDATE(), NOW(), ?, 'none', NULL)`,
     [req.user.id, attendanceStatus],
   );
 
   const [rows] = await db.query(
-    `SELECT id, attendance_date, time_in, time_out, total_hours, status
+    `SELECT id, attendance_date, time_in, time_out, total_hours, status, supervisor_remark, remark_note
      FROM attendance
      WHERE id = ?
      LIMIT 1`,
@@ -215,7 +274,7 @@ export async function timeOut(req: Request, res: Response) {
   );
 
   const [rows] = await db.query(
-    `SELECT id, attendance_date, time_in, time_out, total_hours, status
+    `SELECT id, attendance_date, time_in, time_out, total_hours, status, supervisor_remark, remark_note
      FROM attendance
      WHERE id = ?
      LIMIT 1`,
@@ -225,4 +284,179 @@ export async function timeOut(req: Request, res: Response) {
   return res.json({
     record: mapAttendanceRow((rows as any[])[0]),
   });
+}
+
+export async function updateInternSchedule(req: Request, res: Response) {
+  if (!req.user || (req.user.role !== "supervisor" && req.user.role !== "admin")) {
+    return res.status(403).json({ message: "Only supervisors or admins can update intern schedules." });
+  }
+
+  const internId = Number(req.params.internId);
+  const schedule = req.body?.schedule;
+
+  if (!internId || !Array.isArray(schedule)) {
+    return res.status(400).json({ message: "A valid intern and schedule are required." });
+  }
+
+  const intern = await getManageableIntern(req, internId);
+
+  if (!intern) {
+    return res.status(404).json({ message: "Intern not found for your scope." });
+  }
+
+  await saveUserSchedule(internId, schedule);
+  const savedSchedule = await getUserSchedule(internId);
+
+  return res.json({ schedule: savedSchedule });
+}
+
+export async function supervisorTimeIn(req: Request, res: Response) {
+  if (!req.user || (req.user.role !== "supervisor" && req.user.role !== "admin")) {
+    return res.status(403).json({ message: "Only supervisors or admins can manage intern attendance." });
+  }
+
+  const internId = Number(req.params.internId);
+
+  if (!internId) {
+    return res.status(400).json({ message: "A valid intern id is required." });
+  }
+
+  const intern = await getManageableIntern(req, internId);
+
+  if (!intern) {
+    return res.status(404).json({ message: "Intern not found for your scope." });
+  }
+
+  const existing = await getOpenAttendanceForToday(internId);
+
+  if (existing) {
+    return res.status(400).json({ message: `${intern.full_name} is already clocked in for today.` });
+  }
+
+  const attendanceStatus = await getAttendanceStatusForClockIn(internId);
+  const [result] = await db.execute<ResultSetHeader>(
+    `INSERT INTO attendance (user_id, attendance_date, time_in, status, supervisor_remark, remark_note)
+     VALUES (?, CURDATE(), NOW(), ?, 'none', NULL)`,
+    [internId, attendanceStatus],
+  );
+
+  const record = await getAttendanceRecordById(result.insertId);
+
+  return res.status(201).json({ record: mapAttendanceRow(record) });
+}
+
+export async function supervisorTimeOut(req: Request, res: Response) {
+  if (!req.user || (req.user.role !== "supervisor" && req.user.role !== "admin")) {
+    return res.status(403).json({ message: "Only supervisors or admins can manage intern attendance." });
+  }
+
+  const internId = Number(req.params.internId);
+
+  if (!internId) {
+    return res.status(400).json({ message: "A valid intern id is required." });
+  }
+
+  const intern = await getManageableIntern(req, internId);
+
+  if (!intern) {
+    return res.status(404).json({ message: "Intern not found for your scope." });
+  }
+
+  const openAttendance = await getOpenAttendanceForToday(internId);
+
+  if (!openAttendance) {
+    return res.status(400).json({ message: `${intern.full_name} must be clocked in before clocking out.` });
+  }
+
+  const totalHours = calculateHours(new Date(openAttendance.time_in), new Date());
+
+  await db.execute(
+    `UPDATE attendance
+     SET time_out = NOW(), total_hours = ?
+     WHERE id = ?`,
+    [totalHours, openAttendance.id],
+  );
+
+  const record = await getAttendanceRecordById(openAttendance.id);
+
+  return res.json({ record: mapAttendanceRow(record) });
+}
+
+export async function updateInternAttendanceRemark(req: Request, res: Response) {
+  if (!req.user || (req.user.role !== "supervisor" && req.user.role !== "admin")) {
+    return res.status(403).json({ message: "Only supervisors or admins can manage intern attendance remarks." });
+  }
+
+  const internId = Number(req.params.internId);
+  const remark = typeof req.body?.remark === "string" ? req.body.remark.trim() : "";
+  const remarkNote = typeof req.body?.remarkNote === "string" ? req.body.remarkNote.trim() : "";
+
+  if (!internId || !remark) {
+    return res.status(400).json({ message: "A valid intern and remark are required." });
+  }
+
+  if (!["early_out", "half_day", "absent"].includes(remark)) {
+    return res.status(400).json({ message: "Remark must be early_out, half_day, or absent." });
+  }
+
+  const intern = await getManageableIntern(req, internId);
+
+  if (!intern) {
+    return res.status(404).json({ message: "Intern not found for your scope." });
+  }
+
+  const todayAttendance = await getLatestAttendanceForToday(internId);
+
+  if (remark === "absent") {
+    if (todayAttendance?.time_in) {
+      return res.status(400).json({ message: "This intern already clocked in today. Use half day or early out instead." });
+    }
+
+    if (todayAttendance) {
+      await db.execute(
+        `UPDATE attendance
+         SET status = 'absent', total_hours = 0, supervisor_remark = 'absent', remark_note = ?, time_in = NULL, time_out = NULL
+         WHERE id = ?`,
+        [remarkNote || null, todayAttendance.id],
+      );
+
+      const updatedRecord = await getAttendanceRecordById(todayAttendance.id);
+      return res.json({ record: mapAttendanceRow(updatedRecord) });
+    }
+
+    const [result] = await db.execute<ResultSetHeader>(
+      `INSERT INTO attendance (user_id, attendance_date, time_in, time_out, total_hours, status, supervisor_remark, remark_note)
+       VALUES (?, CURDATE(), NULL, NULL, 0, 'absent', 'absent', ?)`,
+      [internId, remarkNote || null],
+    );
+
+    const createdRecord = await getAttendanceRecordById(result.insertId);
+    return res.status(201).json({ record: mapAttendanceRow(createdRecord) });
+  }
+
+  if (!todayAttendance?.time_in) {
+    return res.status(400).json({ message: "The intern must have a time in record before applying this remark." });
+  }
+
+  if (!todayAttendance.time_out) {
+    const calculatedHours = calculateHours(new Date(todayAttendance.time_in), new Date());
+
+    await db.execute(
+      `UPDATE attendance
+       SET time_out = NOW(), total_hours = ?, supervisor_remark = ?, remark_note = ?
+       WHERE id = ?`,
+      [calculatedHours, remark, remarkNote || null, todayAttendance.id],
+    );
+  } else {
+    await db.execute(
+      `UPDATE attendance
+       SET supervisor_remark = ?, remark_note = ?
+       WHERE id = ?`,
+      [remark, remarkNote || null, todayAttendance.id],
+    );
+  }
+
+  const updatedRecord = await getAttendanceRecordById(todayAttendance.id);
+
+  return res.json({ record: mapAttendanceRow(updatedRecord) });
 }

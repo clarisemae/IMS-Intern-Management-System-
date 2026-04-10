@@ -62,12 +62,14 @@ export function SupervisorDashboard() {
     loadDashboard();
   }, []);
 
-  const getInitials = (name: string) =>
-    name
-      .split(' ')
-      .map((part) => part[0])
-      .join('')
-      .toUpperCase();
+  const getInitials = (name: string) => {
+    const parts = name.trim().split(/\s+/).filter(Boolean);
+
+    if (parts.length === 0) return '';
+    if (parts.length === 1) return parts[0][0]?.toUpperCase() ?? '';
+
+    return `${parts[0][0] ?? ''}${parts[parts.length - 1][0] ?? ''}`.toUpperCase();
+  };
 
   if (isLoading || !data) {
     return (
@@ -147,7 +149,7 @@ export function SupervisorDashboard() {
                   <CardTitle>Intern Overview</CardTitle>
                   <CardDescription>Monitor individual intern progress</CardDescription>
                 </div>
-                <Button variant="outline" size="sm" onClick={() => navigate('tasks')}>View All</Button>
+                <Button variant="outline" size="sm" onClick={() => navigate('interns')}>View All</Button>
               </div>
             </CardHeader>
             <CardContent>

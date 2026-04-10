@@ -92,12 +92,20 @@ export async function getTasks(req: Request, res: Response) {
   });
 }
 
-export async function getAssignableInterns(_req: Request, res: Response) {
+export async function getAssignableInterns(req: Request, res: Response) {
+  const departmentFilter = req.user?.role === "supervisor" && req.user.department
+    ? " AND department = ?"
+    : "";
+  const params = req.user?.role === "supervisor" && req.user.department
+    ? [req.user.department]
+    : [];
+
   const [rows] = await db.query(
     `SELECT id, full_name
      FROM users
-     WHERE role = 'intern' AND status = 'active'
+     WHERE role = 'intern' AND status = 'active'${departmentFilter}
      ORDER BY full_name ASC`,
+    params,
   );
 
   return res.json({
