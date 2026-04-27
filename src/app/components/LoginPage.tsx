@@ -5,7 +5,9 @@ import { Button } from '@/app/components/ui/button';
 import { Input } from '@/app/components/ui/input';
 import { Label } from '@/app/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/app/components/ui/card';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/app/components/ui/dialog';
 import { Building2, ShieldCheck, Sparkles } from 'lucide-react';
+import { apiRequest } from '@/lib/api';
 
 export function LoginPage() {
   const { login } = useAuth();
@@ -13,6 +15,15 @@ export function LoginPage() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [isResetDialogOpen, setIsResetDialogOpen] = useState(false);
+  const [resetEmail, setResetEmail] = useState('');
+  const [otp, setOtp] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [otpSent, setOtpSent] = useState(false);
+  const [resetLoading, setResetLoading] = useState(false);
+  const [resetError, setResetError] = useState('');
+  const [resetMessage, setResetMessage] = useState('');
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -28,6 +39,85 @@ export function LoginPage() {
       setError('An error occurred. Please try again.');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const openResetDialog = () => {
+    setResetEmail(email);
+    setOtp('');
+    setNewPassword('');
+    setConfirmPassword('');
+    setOtpSent(false);
+    setResetError('');
+    setResetMessage('');
+    setIsResetDialogOpen(true);
+  };
+
+  const closeResetDialog = () => {
+    if (resetLoading) {
+      return;
+    }
+
+    setIsResetDialogOpen(false);
+    setOtp('');
+    setNewPassword('');
+    setConfirmPassword('');
+    setOtpSent(false);
+    setResetError('');
+    setResetMessage('');
+  };
+
+  const handleSendOtp = async () => {
+    setResetLoading(true);
+    setResetError('');
+    setResetMessage('');
+
+    try {
+      const response = await apiRequest<{ message: string }>('/auth/forgot-password', {
+        method: 'POST',
+        body: JSON.stringify({ email: resetEmail }),
+      });
+
+      setOtpSent(true);
+      setResetMessage(response.message);
+    } catch (err) {
+      setResetError(err instanceof Error ? err.message : 'Failed to send OTP.');
+    } finally {
+      setResetLoading(false);
+    }
+  };
+
+  const handleResetPassword = async () => {
+    if (newPassword !== confirmPassword) {
+      setResetError('Passwords do not match.');
+      return;
+    }
+
+    setResetLoading(true);
+    setResetError('');
+    setResetMessage('');
+
+    try {
+      const response = await apiRequest<{ message: string }>('/auth/reset-password', {
+        method: 'POST',
+        body: JSON.stringify({
+          email: resetEmail,
+          otp,
+          newPassword,
+        }),
+      });
+
+      setEmail(resetEmail);
+      setPassword('');
+      setResetMessage(response.message);
+      setOtp('');
+      setNewPassword('');
+      setConfirmPassword('');
+      setOtpSent(false);
+    } catch (err) {
+      setResetError(err instanceof Error ? err.message : 'Failed to reset password.');
+    } finally {
+      setResetLoading(false);
     }
   };
 
@@ -112,6 +202,15 @@ export function LoginPage() {
                   required
                 />
               </div>
+              <div className="flex justify-end">
+                <button
+                  type="button"
+                  className="text-sm font-medium text-primary hover:underline"
+                  onClick={openResetDialog}
+                >
+                  Forgot password?
+                </button>
+              </div>
               {error && (
                 <p className="rounded-xl border border-destructive/20 bg-destructive/5 px-3 py-2 text-sm text-destructive">{error}</p>
               )}
@@ -129,6 +228,90 @@ export function LoginPage() {
           </CardContent>
         </Card>
       </div>
+      <Dialog open={isResetDialogOpen} onOpenChange={(open) => (!open ? closeResetDialog() : setIsResetDialogOpen(true))}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Reset Password</DialogTitle>
+            <DialogDescription>
+              Enter your company email to receive a one-time password, then use it to set a new password.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <Label htmlFor="reset-email">Email</Label>
+              <Input
+                id="reset-email"
+                type="email"
+                placeholder="email@regris.com"
+                value={resetEmail}
+                onChange={(e) => setResetEmail(e.target.value)}
+              />
+            </div>
+            {otpSent && (
+              <>
+                <div className="space-y-2">
+                  <Label htmlFor="reset-otp">OTP</Label>
+                  <Input
+                    id="reset-otp"
+                    inputMode="numeric"
+                    maxLength={6}
+                    placeholder="Enter the 6-digit code"
+                    value={otp}
+                    onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="new-password">New Password</Label>
+                  <Input
+                    id="new-password"
+                    type="password"
+                    placeholder="At least 8 characters"
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="confirm-password">Confirm Password</Label>
+                  <Input
+                    id="confirm-password"
+                    type="password"
+                    placeholder="Re-enter your new password"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                  />
+                </div>
+              </>
+            )}
+            {resetMessage && (
+              <p className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
+                {resetMessage}
+              </p>
+            )}
+            {resetError && (
+              <p className="rounded-xl border border-destructive/20 bg-destructive/5 px-3 py-2 text-sm text-destructive">
+                {resetError}
+              </p>
+            )}
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={closeResetDialog} disabled={resetLoading}>
+                Close
+              </Button>
+              {otpSent ? (
+                <Button
+                  onClick={handleResetPassword}
+                  disabled={resetLoading || !resetEmail || otp.length !== 6 || !newPassword || !confirmPassword}
+                >
+                  {resetLoading ? 'Resetting...' : 'Reset Password'}
+                </Button>
+              ) : (
+                <Button onClick={handleSendOtp} disabled={resetLoading || !resetEmail}>
+                  {resetLoading ? 'Sending...' : 'Send OTP'}
+                </Button>
+              )}
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
