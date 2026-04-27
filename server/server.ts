@@ -9,7 +9,7 @@ import reportRoutes from "./routes/reportRoutes";
 import messageRoutes from "./routes/messageRoutes";
 import taskRoutes from "./routes/taskRoutes";
 import userRoutes from "./routes/userRoutes";
-import { testDatabaseConnection } from "./config/db";
+import { cleanupPasswordResetOtps, testDatabaseConnection } from "./config/db";
 
 dotenv.config();
 
@@ -50,6 +50,12 @@ app.use((error: Error, _req: Request, res: Response, _next: NextFunction) => {
 async function startServer() {
   try {
     await testDatabaseConnection();
+    setInterval(() => {
+      void cleanupPasswordResetOtps().catch((error) => {
+        console.error("Failed to clean up password reset OTPs.", error);
+      });
+    }, 60 * 60 * 1000);
+
     app.listen(port, () => {
       console.log(`IMS API running on http://localhost:${port}`);
     });

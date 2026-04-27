@@ -11,6 +11,8 @@ export const db = mysql.createPool({
   queueLimit: 0,
 });
 
+const PASSWORD_RESET_RETENTION_DAYS = 2;
+
 async function ensureReportImageColumn() {
   const [rows] = await db.query(
     `SELECT 1
@@ -57,6 +59,33 @@ async function ensureDepartmentsTable() {
      SELECT DISTINCT TRIM(department)
      FROM users
      WHERE department IS NOT NULL AND TRIM(department) <> ''`,
+  );
+}
+
+async function ensurePasswordResetOtpsTable() {
+  await db.execute(
+    `CREATE TABLE IF NOT EXISTS password_reset_otps (
+      id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+      user_id INT UNSIGNED NOT NULL,
+      otp_hash VARCHAR(255) NOT NULL,
+      expires_at DATETIME NOT NULL,
+      used_at DATETIME NULL,
+      attempts INT UNSIGNED NOT NULL DEFAULT 0,
+      created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      INDEX idx_password_reset_otps_user_id (user_id),
+      INDEX idx_password_reset_otps_expires_at (expires_at),
+      CONSTRAINT fk_password_reset_otps_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    )`,
+  );
+}
+
+export async function cleanupPasswordResetOtps() {
+  await db.execute(
+    `DELETE FROM password_reset_otps
+     WHERE used_at IS NOT NULL
+        OR created_at < DATE_SUB(NOW(), INTERVAL ? DAY)
+        OR expires_at < NOW()`,
+    [PASSWORD_RESET_RETENTION_DAYS],
   );
 }
 
@@ -176,6 +205,8 @@ export async function testDatabaseConnection() {
   connection.release();
   await ensureAttendanceEnhancements();
   await ensureDepartmentsTable();
+  await ensurePasswordResetOtpsTable();
+  await cleanupPasswordResetOtps();
   await ensureInternSchedulesTable();
   await ensureReportImageColumn();
   await ensureUniqueDailyReports();
