@@ -35,7 +35,7 @@ CREATE TABLE IF NOT EXISTS tasks (
   assigned_by INT UNSIGNED NOT NULL,
   deadline DATETIME DEFAULT NULL,
   priority ENUM('low', 'medium', 'high') NOT NULL DEFAULT 'medium',
-  status ENUM('pending', 'in_progress', 'completed') NOT NULL DEFAULT 'pending',
+  status ENUM('pending', 'in_progress', 'reviewing', 'revision', 'completed') NOT NULL DEFAULT 'pending',
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   CONSTRAINT fk_tasks_assigned_to FOREIGN KEY (assigned_to) REFERENCES users(id) ON DELETE CASCADE,
   CONSTRAINT fk_tasks_assigned_by FOREIGN KEY (assigned_by) REFERENCES users(id) ON DELETE CASCADE

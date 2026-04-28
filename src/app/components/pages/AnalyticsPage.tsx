@@ -60,30 +60,6 @@ export function AnalyticsPage() {
 
   return (
     <div className="p-6 space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-semibold">Analytics</h1>
-          <p className="mt-1 text-gray-600">Detailed insights and performance metrics</p>
-        </div>
-        <div className="flex items-center gap-2">
-          <Select value={range} onValueChange={setRange}>
-            <SelectTrigger className="w-40">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="7">Last 7 days</SelectItem>
-              <SelectItem value="30">Last 30 days</SelectItem>
-              <SelectItem value="90">Last 3 months</SelectItem>
-              <SelectItem value="365">Last year</SelectItem>
-            </SelectContent>
-          </Select>
-          <Button variant="outline">
-            <Download className="mr-2 h-4 w-4" />
-            Export
-          </Button>
-        </div>
-      </div>
-
       <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
         {data.metrics.map((metric) => {
           const Icon = iconMap[metric.icon];
@@ -109,12 +85,31 @@ export function AnalyticsPage() {
       </div>
 
       <Tabs defaultValue="trends">
-        <TabsList>
-          <TabsTrigger value="trends">Trends</TabsTrigger>
-          <TabsTrigger value="performance">Performance</TabsTrigger>
-          <TabsTrigger value="departments">Departments</TabsTrigger>
-          <TabsTrigger value="activity">Activity</TabsTrigger>
-        </TabsList>
+        <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+          <TabsList>
+            <TabsTrigger value="trends">Trends</TabsTrigger>
+            <TabsTrigger value="performance">Performance</TabsTrigger>
+            <TabsTrigger value="departments">Departments</TabsTrigger>
+            <TabsTrigger value="activity">Activity</TabsTrigger>
+          </TabsList>
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+            <Select value={range} onValueChange={setRange}>
+              <SelectTrigger className="w-full bg-white sm:w-40">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="7">Last 7 days</SelectItem>
+                <SelectItem value="30">Last 30 days</SelectItem>
+                <SelectItem value="90">Last 3 months</SelectItem>
+                <SelectItem value="365">Last year</SelectItem>
+              </SelectContent>
+            </Select>
+            <Button variant="outline">
+              <Download className="mr-2 h-4 w-4" />
+              Export
+            </Button>
+          </div>
+        </div>
 
         <TabsContent value="trends" className="space-y-6">
           <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">

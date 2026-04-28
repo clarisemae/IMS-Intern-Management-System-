@@ -111,13 +111,6 @@ export function SupervisorDashboard() {
 
   return (
     <div className="p-6 space-y-6">
-      <div>
-        <h1 className="text-3xl font-semibold">Supervisor Dashboard</h1>
-        <p className="mt-1 text-gray-600">
-          {user?.department ? `${user.department} Department - ` : ''}Monitor and manage your team's progress
-        </p>
-      </div>
-
       <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
         {stats.map((stat) => {
           const Icon = stat.icon;

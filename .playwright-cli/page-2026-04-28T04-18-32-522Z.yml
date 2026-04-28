@@ -1,0 +1,87 @@
+- generic [ref=e3]:
+  - generic [ref=e4]:
+    - complementary [ref=e5]:
+      - generic [ref=e7]:
+        - img [ref=e9]
+        - generic [ref=e13]:
+          - heading "REGRIS" [level=1] [ref=e14]
+          - paragraph [ref=e15]: Internship Portal
+      - generic [ref=e17]:
+        - generic [ref=e18]:
+          - generic [ref=e20]: MA
+          - generic [ref=e21]:
+            - paragraph [ref=e22]: Maria Angela Mae Perez
+            - paragraph [ref=e23]: intern
+        - generic [ref=e25]: Finance
+      - navigation [ref=e26]:
+        - button "Dashboard" [ref=e27]:
+          - img [ref=e29]
+          - generic [ref=e34]: Dashboard
+        - button "Attendance" [ref=e35]:
+          - img [ref=e37]
+          - generic [ref=e40]: Attendance
+        - button "Tasks" [active] [ref=e41]:
+          - img [ref=e43]
+          - generic [ref=e46]: Tasks
+        - button "Messages" [ref=e47]:
+          - img [ref=e49]
+          - generic [ref=e51]: Messages
+        - button "Profile" [ref=e52]:
+          - img [ref=e54]
+          - generic [ref=e57]: Profile
+      - button "Logout" [ref=e59]:
+        - img
+        - generic [ref=e60]: Logout
+    - main [ref=e61]:
+      - generic [ref=e63]:
+        - generic [ref=e64]:
+          - paragraph [ref=e65]: Intern Management Dashboard
+          - heading "Operations workspace" [level=1] [ref=e66]
+        - generic [ref=e67]: intern access
+      - generic [ref=e348]:
+        - generic [ref=e350]:
+          - heading "Tasks" [level=1] [ref=e351]
+          - paragraph [ref=e352]: View and manage your assigned tasks
+        - generic [ref=e353]:
+          - generic [ref=e355]:
+            - paragraph [ref=e356]: Total Tasks
+            - paragraph [ref=e357]: "1"
+            - paragraph [ref=e358]: 1 task in your list
+          - generic [ref=e360]:
+            - paragraph [ref=e361]: Pending
+            - paragraph [ref=e362]: "0"
+            - paragraph [ref=e363]: Nothing waiting right now
+          - generic [ref=e365]:
+            - paragraph [ref=e366]: In Progress
+            - paragraph [ref=e367]: "1"
+            - paragraph [ref=e368]: Tasks currently being worked on
+          - generic [ref=e370]:
+            - paragraph [ref=e371]: Completed
+            - paragraph [ref=e372]: "0"
+            - paragraph [ref=e373]: No completed tasks yet
+        - generic [ref=e374]:
+          - generic [ref=e375]:
+            - heading "Task List" [level=4] [ref=e376]
+            - paragraph [ref=e377]: View and manage tasks
+          - generic [ref=e379]:
+            - tablist [ref=e380]:
+              - tab "All" [selected] [ref=e381]
+              - tab "Pending" [ref=e382]
+              - tab "In Progress" [ref=e383]
+              - tab "Completed" [ref=e384]
+            - tabpanel "All" [ref=e385]:
+              - generic [ref=e386] [cursor=pointer]:
+                - generic [ref=e387]:
+                  - generic [ref=e388]:
+                    - heading "BILLING - REBISCO" [level=4] [ref=e389]
+                    - paragraph [ref=e390]: Hi angela, i have sent to you the files for rebisco's billing. Kindly see it in our message
+                  - generic [ref=e392]: high
+                - generic [ref=e393]:
+                  - generic [ref=e394]:
+                    - img [ref=e395]
+                    - generic [ref=e398]: Maria Angela Mae Perez
+                  - generic [ref=e399]:
+                    - img [ref=e400]
+                    - generic [ref=e402]: 4/15/2026
+                  - generic [ref=e403]: In Progress
+  - region "Notifications alt+T"

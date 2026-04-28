@@ -64,6 +64,79 @@ function AppContent() {
     return <LoginPage />;
   }
 
+  const getPageHeader = () => {
+    switch (currentPage) {
+      case 'dashboard':
+        if (user?.role === 'intern') {
+          return {
+            eyebrow: 'Intern Dashboard',
+            title: 'Overview',
+          };
+        }
+
+        if (user?.role === 'supervisor') {
+          return {
+            eyebrow: 'Supervisor Dashboard',
+            title: 'Operations Workspace',
+          };
+        }
+
+        if (user?.role === 'admin') {
+          return {
+            eyebrow: 'Admin Dashboard',
+            title: 'System Workspace',
+          };
+        }
+
+        return {
+          eyebrow: 'Intern Management Dashboard',
+          title: 'Workspace',
+        };
+      case 'attendance':
+        return {
+          eyebrow: 'Attendance',
+          title: 'Daily Time Tracking',
+        };
+      case 'tasks':
+        return {
+          eyebrow: 'Tasks',
+          title: 'Task Board',
+        };
+      case 'interns':
+        return {
+          eyebrow: 'Department Interns',
+          title: 'Intern Oversight',
+        };
+      case 'messages':
+        return {
+          eyebrow: 'Messages',
+          title: 'Conversations',
+        };
+      case 'profile':
+        return {
+          eyebrow: 'Profile',
+          title: 'Account Details',
+        };
+      case 'users':
+        return {
+          eyebrow: 'User Management',
+          title: 'People & Access',
+        };
+      case 'analytics':
+        return {
+          eyebrow: 'Analytics',
+          title: 'Performance Insights',
+        };
+      default:
+        return {
+          eyebrow: 'Intern Management Dashboard',
+          title: 'Workspace',
+        };
+    }
+  };
+
+  const pageHeader = getPageHeader();
+
   const renderPage = () => {
     switch (currentPage) {
       case 'dashboard':
@@ -107,8 +180,8 @@ function AppContent() {
               <div className="border-b border-border/60 bg-background/80 px-6 py-4 backdrop-blur">
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <div>
-                    <p className="text-sm font-medium text-muted-foreground">Intern Management Dashboard</p>
-                    <h1 className="text-xl font-semibold tracking-tight">Operations workspace</h1>
+                    <p className="text-sm font-medium text-muted-foreground">{pageHeader.eyebrow}</p>
+                    <h1 className="text-xl font-semibold tracking-tight">{pageHeader.title}</h1>
                   </div>
                   {user && (
                     <Badge variant="secondary" className="rounded-full px-3 py-1 capitalize">

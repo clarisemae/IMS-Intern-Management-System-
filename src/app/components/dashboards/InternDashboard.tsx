@@ -38,10 +38,13 @@ interface ScheduleStatus {
 
 interface InternDashboardData {
   attendance: {
-    status: 'clocked-in' | 'clocked-out';
+    status: 'clocked-in' | 'clocked-out' | 'absent';
     date: string;
     timeIn: string | null;
     timeOut: string | null;
+    attendanceStatus: 'present' | 'late' | 'absent' | null;
+    supervisorRemark: 'early-out' | 'half-day' | 'absent' | null;
+    remarkNote: string | null;
     totalHours: number;
     progressPercent: number;
     schedule: ScheduleEntry | null;
@@ -93,6 +96,13 @@ function getPrimaryAction(data: InternDashboardData) {
   );
   const hasClockedInToday = Boolean(data.attendance.timeIn);
   const withinScheduleWindow = isWithinScheduleWindow(data.attendance.schedule);
+  const isMarkedAbsent =
+    data.attendance.status === 'absent' ||
+    (data.attendance.attendanceStatus === 'absent' && !data.attendance.timeIn && !data.attendance.timeOut);
+
+  if (isMarkedAbsent) {
+    return { label: 'Marked Absent', page: 'attendance', variant: 'secondary' as const, icon: AlertCircle };
+  }
 
   if (attendanceCompleted && hasReportReminder) {
     return { label: 'Submit Daily Log', page: 'attendance', variant: 'default' as const, icon: FileText };
@@ -177,16 +187,12 @@ export function InternDashboard() {
     ? `${data.attendance.schedule.label}: ${data.attendance.schedule.startTime} - ${data.attendance.schedule.endTime}`
     : 'No schedule set for today';
   const attendanceCompleted = Boolean(data.attendance.timeIn && data.attendance.timeOut);
+  const isMarkedAbsent =
+    data.attendance.status === 'absent' ||
+    (data.attendance.attendanceStatus === 'absent' && !data.attendance.timeIn && !data.attendance.timeOut);
 
   return (
     <div className="p-6 space-y-6">
-      <div>
-        <h1 className="text-3xl font-semibold">Welcome back, {user?.name}!</h1>
-        <p className="mt-1 text-gray-600">
-          {user?.department ? `${user.department} Department - ` : ''}Here's what's happening with your internship today
-        </p>
-      </div>
-
       <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
         {stats.map((stat) => {
           const Icon = stat.icon;
@@ -218,8 +224,8 @@ export function InternDashboard() {
                   <CardTitle>Today's Attendance</CardTitle>
                   <CardDescription>{new Date(data.attendance.date).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}</CardDescription>
                 </div>
-                <Badge variant={data.attendance.status === 'clocked-in' ? 'default' : 'secondary'}>
-                  {data.attendance.status === 'clocked-in' ? 'Clocked In' : 'Clocked Out'}
+                <Badge variant={isMarkedAbsent ? 'secondary' : data.attendance.status === 'clocked-in' ? 'default' : 'secondary'}>
+                  {isMarkedAbsent ? 'Marked Absent' : data.attendance.status === 'clocked-in' ? 'Clocked In' : 'Clocked Out'}
                 </Badge>
               </div>
             </CardHeader>
@@ -244,10 +250,20 @@ export function InternDashboard() {
                     {data.attendance.scheduleStatus.label}
                   </Badge>
                 </div>
-                {data.attendance.scheduleStatus.code !== 'no-schedule' && (
+                {!isMarkedAbsent && data.attendance.scheduleStatus.code !== 'no-schedule' && (
                   <p className="mt-2 text-xs text-muted-foreground">{data.attendance.scheduleStatus.detail}</p>
                 )}
               </div>
+
+              {isMarkedAbsent && (
+                <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3">
+                  <p className="text-sm font-medium text-amber-900">Marked absent for today</p>
+                  <p className="mt-1 text-sm text-amber-800">
+                    Your supervisor recorded today as absent.
+                    {data.attendance.remarkNote ? ` Note: ${data.attendance.remarkNote}` : ''}
+                  </p>
+                </div>
+              )}
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="rounded-lg bg-green-50 p-4">
@@ -356,6 +372,7 @@ export function InternDashboard() {
                 variant={primaryAction.variant}
                 className="w-full justify-start"
                 onClick={() => navigate(primaryAction.page)}
+                disabled={isMarkedAbsent}
               >
                 <PrimaryActionIcon className="mr-2 h-4 w-4" />
                 {primaryAction.label}

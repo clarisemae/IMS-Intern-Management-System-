@@ -1,0 +1,44 @@
+- generic [ref=e3]:
+  - generic [ref=e4]:
+    - complementary [ref=e5]:
+      - generic [ref=e7]:
+        - img [ref=e9]
+        - generic [ref=e13]:
+          - heading "REGRIS" [level=1] [ref=e14]
+          - paragraph [ref=e15]: Internship Portal
+      - generic [ref=e17]:
+        - generic [ref=e18]:
+          - generic [ref=e20]: SA
+          - generic [ref=e21]:
+            - paragraph [ref=e22]: System Admin
+            - paragraph [ref=e23]: admin
+        - generic [ref=e25]: Administration
+      - navigation [ref=e26]:
+        - button "Dashboard" [ref=e27]:
+          - img [ref=e29]
+          - generic [ref=e34]: Dashboard
+        - button "Messages" [ref=e35]:
+          - img [ref=e37]
+          - generic [ref=e39]: Messages
+        - button "User Management" [ref=e40]:
+          - img [ref=e42]
+          - generic [ref=e47]: User Management
+        - button "Analytics" [ref=e48]:
+          - img [ref=e50]
+          - generic [ref=e52]: Analytics
+        - button "Profile" [ref=e53]:
+          - img [ref=e55]
+          - generic [ref=e58]: Profile
+      - button "Logout" [ref=e60]:
+        - img
+        - generic [ref=e61]: Logout
+    - main [ref=e62]:
+      - generic [ref=e64]:
+        - generic [ref=e65]:
+          - paragraph [ref=e66]: Intern Management Dashboard
+          - heading "Operations workspace" [level=1] [ref=e67]
+        - generic [ref=e68]: admin access
+      - generic [ref=e70]:
+        - img [ref=e71]
+        - text: Loading dashboard...
+  - region "Notifications alt+T"

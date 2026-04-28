@@ -1,0 +1,112 @@
+- generic [ref=e1]:
+  - generic [ref=e3]:
+    - generic [ref=e4]:
+      - complementary [ref=e5]:
+        - generic [ref=e7]:
+          - img [ref=e9]
+          - generic [ref=e13]:
+            - heading "REGRIS" [level=1] [ref=e14]
+            - paragraph [ref=e15]: Internship Portal
+        - generic [ref=e17]:
+          - generic [ref=e18]:
+            - generic [ref=e20]: SA
+            - generic [ref=e21]:
+              - paragraph [ref=e22]: System Admin
+              - paragraph [ref=e23]: admin
+          - generic [ref=e25]: Administration
+        - navigation [ref=e26]:
+          - button "Dashboard" [ref=e27]:
+            - img [ref=e29]
+            - generic [ref=e34]: Dashboard
+          - button "Messages" [active] [ref=e569]:
+            - img [ref=e37]
+            - generic [ref=e39]: Messages
+          - button "User Management" [ref=e40]:
+            - img [ref=e42]
+            - generic [ref=e47]: User Management
+          - button "Analytics" [ref=e48]:
+            - img [ref=e50]
+            - generic [ref=e52]: Analytics
+          - button "Profile" [ref=e53]:
+            - img [ref=e55]
+            - generic [ref=e58]: Profile
+        - button "Logout" [ref=e60]:
+          - img
+          - generic [ref=e61]: Logout
+      - main [ref=e62]:
+        - generic [ref=e64]:
+          - generic [ref=e65]:
+            - paragraph [ref=e66]: Intern Management Dashboard
+            - heading "Operations workspace" [level=1] [ref=e67]
+          - generic [ref=e68]: admin access
+        - generic [ref=e570]:
+          - generic [ref=e571]:
+            - generic [ref=e573]:
+              - img [ref=e574]
+              - textbox "Search conversations..." [ref=e577]
+            - generic [ref=e581]:
+              - button "CE Clarise Mae Elle Supervisor 20 days ago Favorite conversation Hi admin 1" [ref=e582]:
+                - generic [ref=e583]:
+                  - generic [ref=e586]: CE
+                  - generic [ref=e587]:
+                    - generic [ref=e588]:
+                      - generic [ref=e589]:
+                        - heading "Clarise Mae Elle" [level=4] [ref=e591]
+                        - paragraph [ref=e592]: Supervisor
+                      - generic [ref=e593]:
+                        - generic [ref=e594]: 20 days ago
+                        - button "Favorite conversation" [ref=e595]:
+                          - img [ref=e596]
+                    - generic [ref=e598]:
+                      - paragraph [ref=e599]: Hi admin
+                      - generic [ref=e601]: "1"
+              - button "MP Maria Angela Mae Perez Intern Favorite conversation No messages yet" [ref=e602]:
+                - generic [ref=e603]:
+                  - generic [ref=e606]: MP
+                  - generic [ref=e607]:
+                    - generic [ref=e608]:
+                      - generic [ref=e609]:
+                        - heading "Maria Angela Mae Perez" [level=4] [ref=e611]
+                        - paragraph [ref=e612]: Intern
+                      - button "Favorite conversation" [ref=e614]:
+                        - img [ref=e615]
+                    - paragraph [ref=e618]: No messages yet
+          - generic [ref=e619]:
+            - generic [ref=e621]:
+              - generic [ref=e622]:
+                - generic [ref=e625]: CE
+                - generic [ref=e626]:
+                  - heading "Clarise Mae Elle" [level=3] [ref=e628]
+                  - paragraph [ref=e629]: Supervisor
+              - generic [ref=e630]:
+                - button [ref=e631]:
+                  - img
+                - button [ref=e632]:
+                  - img
+            - generic [ref=e637]:
+              - generic [ref=e639]: CE
+              - generic [ref=e640]:
+                - paragraph [ref=e644]: Hi admin
+                - paragraph [ref=e645]: 12:16 PM
+            - generic [ref=e647]:
+              - generic [ref=e648]:
+                - button "Bold" [ref=e649]:
+                  - img
+                  - text: Bold
+                - button "Italic" [ref=e650]:
+                  - img
+                  - text: Italic
+                - button "List" [ref=e651]:
+                  - img
+                  - text: List
+                - button "Attach File" [ref=e652]:
+                  - img
+                  - text: Attach File
+              - generic [ref=e653]:
+                - generic [ref=e654]:
+                  - generic: Type a message...
+                - button "Send" [disabled]:
+                  - img
+                  - text: Send
+    - region "Notifications alt+T"
+  - generic [ref=e275]: Nov

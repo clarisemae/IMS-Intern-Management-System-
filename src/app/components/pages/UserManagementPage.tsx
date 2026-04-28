@@ -376,21 +376,15 @@ export function UserManagementPage() {
 
   return (
     <div className="p-6 space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-semibold">User Management</h1>
-          <p className="mt-1 text-gray-600">Manage system users and permissions</p>
-        </div>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" onClick={openDepartmentDialog}>
-            <Building2 className="mr-2 h-4 w-4" />
-            Add Department
-          </Button>
-          <Button onClick={openCreateDialog}>
-            <UserPlus className="mr-2 h-4 w-4" />
-            Add User
-          </Button>
-        </div>
+      <div className="hidden">
+        <Button variant="outline" onClick={openDepartmentDialog}>
+          <Building2 className="mr-2 h-4 w-4" />
+          Add Department
+        </Button>
+        <Button onClick={openCreateDialog}>
+          <UserPlus className="mr-2 h-4 w-4" />
+          Add User
+        </Button>
         <Dialog open={isCreateDialogOpen} onOpenChange={(open) => (!open ? closeDialog() : setIsCreateDialogOpen(true))}>
           <DialogContent>
             <DialogHeader>
@@ -684,31 +678,50 @@ export function UserManagementPage() {
 
       <Card>
         <CardHeader>
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
             <div>
               <CardTitle>Users</CardTitle>
               <CardDescription>Manage all system users</CardDescription>
             </div>
-            <div className="flex items-center gap-2">
-              <Select value={sortBy} onValueChange={(value: UserSortOption) => setSortBy(value)}>
-                <SelectTrigger className="w-[180px]">
-                  <SelectValue placeholder="Sort users" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="name-asc">Name A-Z</SelectItem>
-                  <SelectItem value="name-desc">Name Z-A</SelectItem>
-                  <SelectItem value="department-asc">Department A-Z</SelectItem>
-                  <SelectItem value="department-desc">Department Z-A</SelectItem>
-                </SelectContent>
-              </Select>
-              <div className="relative w-64">
-                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-                <Input
-                  placeholder="Search users..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-9"
-                />
+            <div className="flex flex-1 flex-col gap-4 lg:flex-row lg:items-end lg:justify-end">
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:gap-4">
+                <div className="min-w-[200px] space-y-1">
+                  <Label htmlFor="user-sort" className="text-xs text-muted-foreground">Sort users</Label>
+                  <Select value={sortBy} onValueChange={(value: UserSortOption) => setSortBy(value)}>
+                    <SelectTrigger id="user-sort" className="w-full bg-white sm:w-[200px]">
+                      <SelectValue placeholder="Sort users" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="name-asc">Name A-Z</SelectItem>
+                      <SelectItem value="name-desc">Name Z-A</SelectItem>
+                      <SelectItem value="department-asc">Department A-Z</SelectItem>
+                      <SelectItem value="department-desc">Department Z-A</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="w-full max-w-[320px] space-y-1">
+                  <Label htmlFor="user-search" className="text-xs text-muted-foreground">Search users</Label>
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                    <Input
+                      id="user-search"
+                      placeholder="Search users..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="bg-white pl-9"
+                    />
+                  </div>
+                </div>
+              </div>
+              <div className="flex flex-col gap-2 sm:flex-row xl:pl-4">
+                <Button variant="outline" onClick={openDepartmentDialog}>
+                  <Building2 className="mr-2 h-4 w-4" />
+                  Add Department
+                </Button>
+                <Button onClick={openCreateDialog}>
+                  <UserPlus className="mr-2 h-4 w-4" />
+                  Add User
+                </Button>
               </div>
             </div>
           </div>

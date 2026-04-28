@@ -1,0 +1,155 @@
+- generic [ref=e1]:
+  - generic [ref=e3]:
+    - generic [ref=e4]:
+      - complementary [ref=e5]:
+        - generic [ref=e7]:
+          - img [ref=e9]
+          - generic [ref=e13]:
+            - heading "REGRIS" [level=1] [ref=e14]
+            - paragraph [ref=e15]: Internship Portal
+        - generic [ref=e17]:
+          - generic [ref=e18]:
+            - generic [ref=e20]: SA
+            - generic [ref=e21]:
+              - paragraph [ref=e22]: System Admin
+              - paragraph [ref=e23]: admin
+          - generic [ref=e25]: Administration
+        - navigation [ref=e26]:
+          - button "Dashboard" [ref=e27]:
+            - img [ref=e29]
+            - generic [ref=e34]: Dashboard
+          - button "Messages 1" [ref=e73]:
+            - img [ref=e37]
+            - generic [ref=e39]: Messages
+            - generic [ref=e75]: "1"
+          - button "User Management" [ref=e40]:
+            - img [ref=e42]
+            - generic [ref=e47]: User Management
+          - button "Analytics" [active] [ref=e48]:
+            - img [ref=e50]
+            - generic [ref=e52]: Analytics
+          - button "Profile" [ref=e53]:
+            - img [ref=e55]
+            - generic [ref=e58]: Profile
+        - button "Logout" [ref=e60]:
+          - img
+          - generic [ref=e61]: Logout
+      - main [ref=e62]:
+        - generic [ref=e64]:
+          - generic [ref=e65]:
+            - paragraph [ref=e66]: Intern Management Dashboard
+            - heading "Operations workspace" [level=1] [ref=e67]
+          - generic [ref=e68]: admin access
+        - generic [ref=e276]:
+          - generic [ref=e277]:
+            - generic [ref=e278]:
+              - heading "Analytics" [level=1] [ref=e279]
+              - paragraph [ref=e280]: Detailed insights and performance metrics
+            - generic [ref=e281]:
+              - combobox [ref=e282]:
+                - generic: Last 30 days
+                - img
+              - button "Export" [ref=e283]:
+                - img
+                - text: Export
+          - generic [ref=e284]:
+            - generic [ref=e286]:
+              - generic [ref=e287]:
+                - paragraph [ref=e288]: Avg. Attendance
+                - img [ref=e289]
+              - generic [ref=e294]:
+                - paragraph [ref=e295]: 0%
+                - generic [ref=e296]:
+                  - img [ref=e297]
+                  - text: Live
+            - generic [ref=e301]:
+              - generic [ref=e302]:
+                - paragraph [ref=e303]: Avg. Hours/Week
+                - img [ref=e304]
+              - generic [ref=e307]:
+                - paragraph [ref=e308]: "0"
+                - generic [ref=e309]:
+                  - img [ref=e310]
+                  - text: Live
+            - generic [ref=e314]:
+              - generic [ref=e315]:
+                - paragraph [ref=e316]: Task Completion
+                - img [ref=e317]
+              - generic [ref=e320]:
+                - paragraph [ref=e321]: 0%
+                - generic [ref=e322]:
+                  - img [ref=e323]
+                  - text: Live
+            - generic [ref=e327]:
+              - generic [ref=e328]:
+                - paragraph [ref=e329]: Performance Score
+                - img [ref=e330]
+              - generic [ref=e333]:
+                - paragraph [ref=e334]: 0%
+                - generic [ref=e335]:
+                  - img [ref=e336]
+                  - text: Live
+          - generic [ref=e339]:
+            - tablist [ref=e340]:
+              - tab "Trends" [selected] [ref=e341]
+              - tab "Performance" [ref=e342]
+              - tab "Departments" [ref=e343]
+              - tab "Activity" [ref=e344]
+            - tabpanel "Trends" [ref=e345]:
+              - generic [ref=e346]:
+                - generic [ref=e347]:
+                  - generic [ref=e348]:
+                    - heading "Intern Growth" [level=4] [ref=e349]
+                    - paragraph [ref=e350]: Number of active interns over time
+                  - img [ref=e354]:
+                    - generic [ref=e359]:
+                      - generic [ref=e361]: Nov
+                      - generic [ref=e363]: Dec
+                      - generic [ref=e365]: Jan
+                      - generic [ref=e367]: Feb
+                      - generic [ref=e369]: Mar
+                      - generic [ref=e371]: Apr
+                    - generic [ref=e373]:
+                      - generic [ref=e375]: "0"
+                      - generic [ref=e377]: "0.25"
+                      - generic [ref=e379]: "0.5"
+                      - generic [ref=e381]: "0.75"
+                      - generic [ref=e383]: "1"
+                - generic [ref=e390]:
+                  - generic [ref=e391]:
+                    - heading "Total Hours Logged" [level=4] [ref=e392]
+                    - paragraph [ref=e393]: Cumulative hours by month
+                  - img [ref=e397]:
+                    - generic [ref=e402]:
+                      - generic [ref=e404]: Nov
+                      - generic [ref=e406]: Dec
+                      - generic [ref=e408]: Jan
+                      - generic [ref=e410]: Feb
+                      - generic [ref=e412]: Mar
+                      - generic [ref=e414]: Apr
+                    - generic [ref=e416]:
+                      - generic [ref=e418]: "0"
+                      - generic [ref=e420]: "1"
+                      - generic [ref=e422]: "2"
+                      - generic [ref=e424]: "3"
+                      - generic [ref=e426]: "4"
+              - generic [ref=e427]:
+                - generic [ref=e428]:
+                  - heading "Task Completion Trends" [level=4] [ref=e429]
+                  - paragraph [ref=e430]: Tasks created per month
+                - img [ref=e434]:
+                  - generic [ref=e439]:
+                    - generic [ref=e441]: Nov
+                    - generic [ref=e443]: Dec
+                    - generic [ref=e445]: Jan
+                    - generic [ref=e447]: Feb
+                    - generic [ref=e449]: Mar
+                    - generic [ref=e451]: Apr
+                  - generic [ref=e453]:
+                    - generic [ref=e455]: "0"
+                    - generic [ref=e457]: "0.25"
+                    - generic [ref=e459]: "0.5"
+                    - generic [ref=e461]: "0.75"
+                    - generic [ref=e463]: "1"
+    - region "Notifications alt+T"
+  - generic [ref=e275]: Nov

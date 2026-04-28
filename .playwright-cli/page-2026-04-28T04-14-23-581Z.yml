@@ -1,0 +1,135 @@
+- generic [ref=e1]:
+  - generic [ref=e3]:
+    - generic [ref=e4]:
+      - complementary [ref=e5]:
+        - generic [ref=e7]:
+          - img [ref=e9]
+          - generic [ref=e13]:
+            - heading "REGRIS" [level=1] [ref=e14]
+            - paragraph [ref=e15]: Internship Portal
+        - generic [ref=e17]:
+          - generic [ref=e18]:
+            - generic [ref=e20]: SA
+            - generic [ref=e21]:
+              - paragraph [ref=e22]: System Admin
+              - paragraph [ref=e23]: admin
+          - generic [ref=e25]: Administration
+        - navigation [ref=e26]:
+          - button "Dashboard" [ref=e27]:
+            - img [ref=e29]
+            - generic [ref=e34]: Dashboard
+          - button "Messages 1" [ref=e73]:
+            - img [ref=e37]
+            - generic [ref=e39]: Messages
+            - generic [ref=e75]: "1"
+          - button "User Management" [active] [ref=e40]:
+            - img [ref=e42]
+            - generic [ref=e47]: User Management
+          - button "Analytics" [ref=e48]:
+            - img [ref=e50]
+            - generic [ref=e52]: Analytics
+          - button "Profile" [ref=e53]:
+            - img [ref=e55]
+            - generic [ref=e58]: Profile
+        - button "Logout" [ref=e60]:
+          - img
+          - generic [ref=e61]: Logout
+      - main [ref=e62]:
+        - generic [ref=e64]:
+          - generic [ref=e65]:
+            - paragraph [ref=e66]: Intern Management Dashboard
+            - heading "Operations workspace" [level=1] [ref=e67]
+          - generic [ref=e68]: admin access
+        - generic [ref=e477]:
+          - generic [ref=e478]:
+            - generic [ref=e479]:
+              - heading "User Management" [level=1] [ref=e480]
+              - paragraph [ref=e481]: Manage system users and permissions
+            - generic [ref=e482]:
+              - button "Add Department" [ref=e483]:
+                - img
+                - text: Add Department
+              - button "Add User" [ref=e484]:
+                - img
+                - text: Add User
+          - generic [ref=e485]:
+            - generic [ref=e487]:
+              - paragraph [ref=e488]: Total Users
+              - paragraph [ref=e489]: "3"
+            - generic [ref=e491]:
+              - paragraph [ref=e492]: Interns
+              - paragraph [ref=e493]: "1"
+            - generic [ref=e495]:
+              - paragraph [ref=e496]: Supervisors
+              - paragraph [ref=e497]: "1"
+            - generic [ref=e499]:
+              - paragraph [ref=e500]: Admins
+              - paragraph [ref=e501]: "1"
+          - generic [ref=e502]:
+            - generic [ref=e504]:
+              - generic [ref=e505]:
+                - heading "Users" [level=4] [ref=e506]
+                - paragraph [ref=e507]: Manage all system users
+              - generic [ref=e508]:
+                - combobox [ref=e509]:
+                  - generic: Name A-Z
+                  - img
+                - generic [ref=e510]:
+                  - img [ref=e511]
+                  - textbox "Search users..." [ref=e514]
+            - generic [ref=e516]:
+              - tablist [ref=e517]:
+                - tab "All Users" [selected] [ref=e518]
+                - tab "Interns" [ref=e519]
+                - tab "Supervisors" [ref=e520]
+                - tab "Admins" [ref=e521]
+              - tabpanel "All Users" [ref=e522]:
+                - table [ref=e525]:
+                  - rowgroup [ref=e526]:
+                    - row "Name Email Role Department Status Join Date Actions" [ref=e527]:
+                      - columnheader "Name" [ref=e528]
+                      - columnheader "Email" [ref=e529]
+                      - columnheader "Role" [ref=e530]
+                      - columnheader "Department" [ref=e531]
+                      - columnheader "Status" [ref=e532]
+                      - columnheader "Join Date" [ref=e533]
+                      - columnheader "Actions" [ref=e534]
+                  - rowgroup [ref=e535]:
+                    - row "Clarise Mae Elle clarise@regris.com Supervisor Finance Active 3/31/2026" [ref=e536]:
+                      - cell "Clarise Mae Elle" [ref=e537]
+                      - cell "clarise@regris.com" [ref=e538]
+                      - cell "Supervisor" [ref=e539]:
+                        - generic [ref=e540]: Supervisor
+                      - cell "Finance" [ref=e541]
+                      - cell "Active" [ref=e542]:
+                        - generic [ref=e543]: Active
+                      - cell "3/31/2026" [ref=e544]
+                      - cell [ref=e545]:
+                        - button [ref=e546]:
+                          - img
+                    - row "Maria Angela Mae Perez maria@regris.com Intern Finance Active 3/30/2026" [ref=e547]:
+                      - cell "Maria Angela Mae Perez" [ref=e548]
+                      - cell "maria@regris.com" [ref=e549]
+                      - cell "Intern" [ref=e550]:
+                        - generic [ref=e551]: Intern
+                      - cell "Finance" [ref=e552]
+                      - cell "Active" [ref=e553]:
+                        - generic [ref=e554]: Active
+                      - cell "3/30/2026" [ref=e555]
+                      - cell [ref=e556]:
+                        - button [ref=e557]:
+                          - img
+                    - row "System Admin admin@regris.com Admin Administration Active 3/30/2026" [ref=e558]:
+                      - cell "System Admin" [ref=e559]
+                      - cell "admin@regris.com" [ref=e560]
+                      - cell "Admin" [ref=e561]:
+                        - generic [ref=e562]: Admin
+                      - cell "Administration" [ref=e563]
+                      - cell "Active" [ref=e564]:
+                        - generic [ref=e565]: Active
+                      - cell "3/30/2026" [ref=e566]
+                      - cell [ref=e567]:
+                        - button [ref=e568]:
+                          - img
+    - region "Notifications alt+T"
+  - generic [ref=e275]: Nov

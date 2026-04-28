@@ -2,7 +2,21 @@ import { Request, Response } from "express";
 import { ResultSetHeader } from "mysql2";
 import { db } from "../config/db";
 
+const VALID_TASK_STATUSES = ["pending", "in_progress", "reviewing", "revision", "completed"] as const;
+
+function normalizeTaskStatusInput(status: unknown) {
+  if (typeof status !== "string" || !status.trim()) {
+    return null;
+  }
+
+  return status === "in-progress" ? "in_progress" : status;
+}
+
 function mapTaskRow(row: any) {
+  const deadline = row.deadline instanceof Date
+    ? `${row.deadline.getFullYear()}-${String(row.deadline.getMonth() + 1).padStart(2, "0")}-${String(row.deadline.getDate()).padStart(2, "0")}`
+    : row.deadline;
+
   return {
     id: row.id,
     title: row.title,
@@ -11,7 +25,7 @@ function mapTaskRow(row: any) {
     assignedToName: row.assigned_to_name,
     assignedById: row.assigned_by,
     assignedByName: row.assigned_by_name,
-    deadline: row.deadline,
+    deadline,
     priority: row.priority,
     status: row.status === "in_progress" ? "in-progress" : row.status,
     createdAt: row.created_at,
@@ -133,7 +147,7 @@ export async function createTask(req: Request, res: Response) {
     return res.status(400).json({ message: "Assigned user must be an active intern." });
   }
 
-  const normalizedStatus = status === "in-progress" ? "in_progress" : status || "pending";
+  const normalizedStatus = normalizeTaskStatusInput(status) || "pending";
 
   const [result] = await db.execute<ResultSetHeader>(
     `INSERT INTO tasks (title, description, assigned_to, assigned_by, deadline, priority, status)
@@ -174,10 +188,14 @@ export async function updateTask(req: Request, res: Response) {
       return res.status(403).json({ message: "You can only update your own tasks." });
     }
 
-    const normalizedStatus = status === "in-progress" ? "in_progress" : status;
+    const normalizedStatus = normalizeTaskStatusInput(status);
 
-    if (!normalizedStatus || !["pending", "in_progress", "completed"].includes(normalizedStatus)) {
+    if (!normalizedStatus || !VALID_TASK_STATUSES.includes(normalizedStatus as typeof VALID_TASK_STATUSES[number])) {
       return res.status(400).json({ message: "A valid task status is required." });
+    }
+
+    if (normalizedStatus === "completed" || normalizedStatus === "revision") {
+      return res.status(403).json({ message: "Interns cannot set completed or revision states. Submit tasks for review instead." });
     }
 
     await db.execute("UPDATE tasks SET status = ? WHERE id = ?", [normalizedStatus, taskId]);
@@ -198,7 +216,11 @@ export async function updateTask(req: Request, res: Response) {
       return res.status(400).json({ message: "Assigned user must be an active intern." });
     }
 
-    const normalizedStatus = status === "in-progress" ? "in_progress" : status;
+    const normalizedStatus = normalizeTaskStatusInput(status);
+
+    if (!normalizedStatus || !VALID_TASK_STATUSES.includes(normalizedStatus as typeof VALID_TASK_STATUSES[number])) {
+      return res.status(400).json({ message: "A valid task status is required." });
+    }
 
     await db.execute(
       `UPDATE tasks

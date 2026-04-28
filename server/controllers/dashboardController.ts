@@ -30,6 +30,42 @@ function normalizeSupervisorRemark(value: string | null | undefined) {
   return value;
 }
 
+function getInternAttendanceState(record: any) {
+  if (!record) {
+    return "clocked-out";
+  }
+
+  if (record.status === "absent" && !record.time_in && !record.time_out) {
+    return "absent";
+  }
+
+  if (record.time_in && !record.time_out) {
+    return "clocked-in";
+  }
+
+  return "clocked-out";
+}
+
+function isAbsentAttendanceRecord(record: any) {
+  return Boolean(record && record.status === "absent" && !record.time_in && !record.time_out);
+}
+
+function getSupervisorScheduleAlertDetail(internName: string, schedule: any, scheduleStatus: any) {
+  if (!schedule?.startTime) {
+    return scheduleStatus.detail;
+  }
+
+  if (scheduleStatus.code === "late") {
+    return `${internName} is already late for the ${schedule.startTime} shift.`;
+  }
+
+  if (scheduleStatus.code === "missed") {
+    return `${internName} missed the ${schedule.startTime} shift clock-in window.`;
+  }
+
+  return scheduleStatus.detail;
+}
+
 export async function getDashboardOverview(req: Request, res: Response) {
   if (!req.user) {
     return res.status(401).json({ message: "Authentication is required." });
@@ -37,7 +73,7 @@ export async function getDashboardOverview(req: Request, res: Response) {
 
   if (req.user.role === "intern") {
     const [attendanceRows] = await db.query(
-      `SELECT attendance_date, time_in, time_out, total_hours
+      `SELECT attendance_date, time_in, time_out, total_hours, status
        FROM attendance
        WHERE user_id = ?
        ORDER BY attendance_date DESC, id DESC
@@ -85,13 +121,17 @@ export async function getDashboardOverview(req: Request, res: Response) {
     const todayWeekDay = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"][new Date().getDay()];
     const todaySchedule = scheduleEntries.find((entry) => entry.day === todayWeekDay) ?? null;
     const scheduleStatus = getScheduleStatusForNow(todaySchedule, latestAttendance?.time_in ?? null);
+    const absentToday = isAbsentAttendanceRecord(latestAttendance);
 
     return res.json({
       attendance: {
-        status: latestAttendance && !latestAttendance.time_out ? "clocked-in" : "clocked-out",
+        status: getInternAttendanceState(latestAttendance),
         date: latestAttendance?.attendance_date ?? new Date().toISOString().slice(0, 10),
         timeIn: latestAttendance?.time_in ?? null,
         timeOut: latestAttendance?.time_out ?? null,
+        attendanceStatus: latestAttendance?.status ?? null,
+        supervisorRemark: normalizeSupervisorRemark(latestAttendance?.supervisor_remark),
+        remarkNote: latestAttendance?.remark_note ?? null,
         totalHours,
         progressPercent: Math.min(100, Number(((totalHours / 200) * 100).toFixed(0))),
         schedule: todaySchedule,
@@ -115,7 +155,13 @@ export async function getDashboardOverview(req: Request, res: Response) {
         message: `You saved a ${row.type} report`,
         time: formatRelativeTime(row.created_at),
       })).concat(
-        scheduleStatus.code === "late"
+        absentToday
+          ? [{
+              id: 997,
+              message: `Your supervisor marked you absent for today${latestAttendance?.remark_note ? `: ${latestAttendance.remark_note}` : "."}`,
+              time: "Now",
+            }]
+          : scheduleStatus.code === "late"
           ? [{
               id: 999,
               message: `Late reminder: you are already past the 15-minute grace period for your ${todaySchedule?.startTime} shift.`,
@@ -128,13 +174,17 @@ export async function getDashboardOverview(req: Request, res: Response) {
                 time: "Now",
               }]
             : [],
-      ).concat({
-        id: 1000,
-        message: todaySchedule?.isActive
-          ? `${todaySchedule.label} schedule: ${todaySchedule.startTime} - ${todaySchedule.endTime} (${scheduleStatus.label})`
-          : "No schedule set for today.",
-        time: "Today",
-      }),
+      ).concat(
+        absentToday
+          ? []
+          : [{
+              id: 1000,
+              message: todaySchedule?.isActive
+                ? `${todaySchedule.label} schedule: ${todaySchedule.startTime} - ${todaySchedule.endTime} (${scheduleStatus.label})`
+                : "No schedule set for today.",
+              time: "Today",
+            }],
+      ),
     });
   }
 
@@ -232,7 +282,7 @@ export async function getDashboardOverview(req: Request, res: Response) {
       .map((intern, index) => ({
         id: index + 1,
         name: intern.name,
-        detail: intern.scheduleStatus.detail,
+        detail: getSupervisorScheduleAlertDetail(intern.name, intern.schedule, intern.scheduleStatus),
         status: intern.scheduleStatus.label,
       }));
 

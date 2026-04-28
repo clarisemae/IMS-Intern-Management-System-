@@ -67,7 +67,7 @@ interface SupervisorDashboardData {
 const remarkOptions: Array<{ value: RemarkValue; label: string; helper: string }> = [
   { value: 'early-out', label: 'Early Out', helper: 'Clock the intern out and mark the day as early departure.' },
   { value: 'half-day', label: 'Half Day', helper: 'Clock the intern out and mark the day as a half-day shift.' },
-  { value: 'absent', label: 'Absent', helper: 'Mark the intern absent for today when no time-in exists.' },
+  { value: 'absent', label: 'Mark as Absent', helper: 'Use only when the intern did not report for the day and has no time-in record.' },
 ];
 
 export function SupervisorInternsPage() {
@@ -133,6 +133,15 @@ export function SupervisorInternsPage() {
   const selectedIntern = useMemo(
     () => data?.interns.find((intern) => intern.id === selectedInternId) ?? null,
     [data?.interns, selectedInternId],
+  );
+  const hasTimeInRecord = Boolean(selectedIntern?.todayAttendance?.timeIn);
+  const availableRemarkOptions = useMemo(
+    () => remarkOptions.filter((option) => option.value !== 'absent' || !hasTimeInRecord),
+    [hasTimeInRecord],
+  );
+  const selectedRemarkOption = useMemo(
+    () => remarkOptions.find((option) => option.value === remarkValue) ?? remarkOptions[0],
+    [remarkValue],
   );
 
   const getInitials = (name: string) => {
@@ -210,12 +219,19 @@ export function SupervisorInternsPage() {
   const openManageDialog = (intern: SupervisorIntern) => {
     setSelectedInternId(intern.id);
     setScheduleDraft(intern.weeklySchedule.map((entry) => ({ ...entry })));
-    setRemarkValue((intern.todayAttendance?.supervisorRemark ?? 'early-out') as RemarkValue);
+    const initialRemarkValue = (intern.todayAttendance?.supervisorRemark ?? 'early-out') as RemarkValue;
+    setRemarkValue(intern.todayAttendance?.timeIn && initialRemarkValue === 'absent' ? 'half-day' : initialRemarkValue);
     setRemarkNote(intern.todayAttendance?.remarkNote ?? '');
     setIsEditingSchedule(false);
     setIsManageDialogOpen(true);
     setError('');
   };
+
+  useEffect(() => {
+    if (hasTimeInRecord && remarkValue === 'absent') {
+      setRemarkValue('half-day');
+    }
+  }, [hasTimeInRecord, remarkValue]);
 
   const updateScheduleDraft = (day: string, field: 'startTime' | 'endTime', value: string) => {
     setScheduleDraft((current) =>
@@ -320,7 +336,7 @@ export function SupervisorInternsPage() {
           <DialogHeader>
             <DialogTitle>{selectedIntern ? `Manage ${selectedIntern.name}` : 'Manage Intern'}</DialogTitle>
             <DialogDescription>
-              Update schedules, control today&apos;s attendance, and record supervisor remarks like early out, half day, or absent.
+              Update schedules, control today&apos;s attendance, and record manual supervisor remarks for late arrivals, half days, or confirmed absences.
             </DialogDescription>
           </DialogHeader>
 
@@ -362,6 +378,11 @@ export function SupervisorInternsPage() {
                 <div className="rounded-2xl border p-3.5 space-y-3">
                   <div>
                     <h3 className="font-semibold">Attendance Remark</h3>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      {hasTimeInRecord
+                        ? 'This intern already has a time-in. Use Early Out or Half Day instead of marking them absent.'
+                        : 'Use Mark as Absent only when the intern did not report today.'}
+                    </p>
                   </div>
                   <div className="space-y-2">
                     <Label>Remark Type</Label>
@@ -370,13 +391,14 @@ export function SupervisorInternsPage() {
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        {remarkOptions.map((option) => (
+                        {availableRemarkOptions.map((option) => (
                           <SelectItem key={option.value} value={option.value}>
                             {option.label}
                           </SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
+                    <p className="text-xs text-muted-foreground">{selectedRemarkOption.helper}</p>
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="remark-note">Remark Note</Label>
@@ -456,14 +478,8 @@ export function SupervisorInternsPage() {
         </DialogContent>
       </Dialog>
 
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-        <div>
-          <h1 className="text-3xl font-semibold">Department Interns</h1>
-          <p className="mt-1 text-gray-600">
-            {user?.department ? `${user.department} Department` : 'Assigned interns'} overview, attendance monitoring, and supervisor controls
-          </p>
-        </div>
-        <div className="flex flex-col gap-2 sm:flex-row">
+      <div className="hidden">
+        <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
           <div className="relative min-w-[260px] rounded-xl border border-border/80 bg-background shadow-sm">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
@@ -512,8 +528,34 @@ export function SupervisorInternsPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Intern Directory</CardTitle>
-          <CardDescription>View interns in your department, manage schedules, and correct attendance records for today.</CardDescription>
+          <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
+            <div>
+              <CardTitle>Intern Directory</CardTitle>
+              <CardDescription>View interns in your department, manage schedules, and correct attendance records for today.</CardDescription>
+            </div>
+            <div className="flex flex-1 flex-col gap-4 lg:flex-row lg:items-end lg:justify-end">
+              <div className="w-full max-w-[340px] space-y-1">
+                <Label htmlFor="intern-search" className="text-xs text-muted-foreground">Search interns</Label>
+                <div className="relative rounded-xl border border-border/80 bg-background shadow-sm">
+                  <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                  <Input
+                    id="intern-search"
+                    placeholder="Search interns..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="border-0 bg-transparent pl-9 shadow-none focus-visible:ring-1"
+                  />
+                </div>
+              </div>
+              <div className="xl:pl-4">
+                <Label className="text-xs text-transparent select-none">Manage</Label>
+                <Button onClick={() => filteredInterns[0] && openManageDialog(filteredInterns[0])} disabled={filteredInterns.length === 0}>
+                  <ClipboardPen className="mr-2 h-4 w-4" />
+                  Manage Interns
+                </Button>
+              </div>
+            </div>
+          </div>
         </CardHeader>
         <CardContent>
           {filteredInterns.length === 0 ? (

@@ -110,11 +110,6 @@ export function ProfilePage() {
 
   return (
     <div className="flex h-full flex-col px-4 pb-8 pt-0">
-      <div className="mb-3">
-        <h1 className="text-2xl font-semibold">Profile</h1>
-        <p className="mt-1 text-sm text-gray-600">Update your account details</p>
-      </div>
-
       <div className="grid min-h-0 flex-1 grid-cols-1 gap-4 lg:grid-cols-3">
         <Card className="h-full">
           <CardContent className="flex h-full flex-col p-5">

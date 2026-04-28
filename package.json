@@ -6,6 +6,7 @@
   "scripts": {
     "build": "vite build",
     "dev": "vite",
+    "smoke:api": "node scripts/smoke-api.mjs",
     "server:dev": "tsx watch server/server.ts",
     "server:start": "tsx server/server.ts",
     "dev:all": "concurrently \"npm run dev\" \"npm run server:dev\""

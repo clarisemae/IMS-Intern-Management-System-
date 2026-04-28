@@ -1,0 +1,202 @@
+- generic:
+  - generic:
+    - generic:
+      - generic:
+        - complementary:
+          - generic:
+            - generic:
+              - generic:
+                - img
+              - generic:
+                - heading [level=1]: REGRIS
+                - paragraph: Internship Portal
+          - generic:
+            - generic:
+              - generic:
+                - generic:
+                  - generic: CM
+                - generic:
+                  - paragraph: Clarise Mae Elle
+                  - paragraph: supervisor
+              - generic:
+                - generic: Finance
+          - navigation:
+            - button:
+              - generic:
+                - img
+              - generic: Dashboard
+            - button:
+              - generic:
+                - img
+              - generic: Interns
+            - button:
+              - generic:
+                - img
+              - generic: Tasks
+            - button:
+              - generic:
+                - img
+              - generic: Messages
+            - button:
+              - generic:
+                - img
+              - generic: Analytics
+            - button:
+              - generic:
+                - img
+              - generic: Profile
+          - generic:
+            - button:
+              - img
+              - generic: Logout
+        - main:
+          - generic:
+            - generic:
+              - generic:
+                - paragraph: Intern Management Dashboard
+                - heading [level=1]: Operations workspace
+              - generic: supervisor access
+          - generic:
+            - generic:
+              - generic:
+                - generic:
+                  - heading [level=1]: Department Interns
+                  - paragraph: Finance Department overview, attendance monitoring, and supervisor controls
+                - generic:
+                  - generic:
+                    - img
+                    - textbox:
+                      - /placeholder: Search interns...
+                  - button:
+                    - img
+                    - text: Manage Interns
+              - generic:
+                - generic:
+                  - generic:
+                    - paragraph: Active Interns
+                    - paragraph: "1"
+                    - paragraph: Interns in your department currently under your supervision
+                - generic:
+                  - generic:
+                    - paragraph: Completed Tasks
+                    - paragraph: "0"
+                    - paragraph: Total tasks completed across your interns
+                - generic:
+                  - generic:
+                    - paragraph: Avg. Performance
+                    - paragraph: 0%
+                    - paragraph: Calculated from recorded hours progress
+              - generic:
+                - generic:
+                  - heading [level=4]: Intern Directory
+                  - paragraph: View interns in your department, manage schedules, and correct attendance records for today.
+                - generic:
+                  - generic:
+                    - generic:
+                      - generic:
+                        - generic:
+                          - generic:
+                            - generic: MP
+                          - generic:
+                            - generic:
+                              - heading [level=3]: Maria Angela Mae Perez
+                              - generic: Late
+                              - generic: 1 pending
+                              - generic: Absent
+                            - paragraph: Maria Angela Mae Perez is already late for the 07:00 shift.
+                            - paragraph: "Tuesday: 07:00 - 16:00"
+                            - paragraph: "Remark: Functional absent test"
+                        - generic:
+                          - generic:
+                            - img
+                            - text: Needs attention
+                          - button: Manage
+                      - generic:
+                        - generic:
+                          - paragraph: Hours Progress
+                          - generic:
+                            - generic: 0.0 / 200 hrs
+                            - generic: 0%
+                          - progressbar
+                        - generic:
+                          - paragraph: Attendance Today
+                          - paragraph: "In: -- / Out: --"
+                          - paragraph: absent record
+                        - generic:
+                          - paragraph: Open Work
+                          - paragraph: "1"
+                          - paragraph: Pending tasks currently assigned
+      - region "Notifications alt+T"
+  - dialog "Manage Maria Angela Mae Perez" [ref=e326]:
+    - generic [ref=e327]:
+      - heading "Manage Maria Angela Mae Perez" [level=2] [ref=e328]
+      - paragraph [ref=e329]: Update schedules, control today's attendance, and record supervisor remarks like early out, half day, or absent.
+    - generic [ref=e330]:
+      - generic [ref=e331]:
+        - generic [ref=e332]:
+          - paragraph [ref=e333]: Today's Time In
+          - paragraph [ref=e334]: "--"
+        - generic [ref=e335]:
+          - paragraph [ref=e336]: Today's Time Out
+          - paragraph [ref=e337]: "--"
+        - generic [ref=e338]:
+          - paragraph [ref=e339]: Current Remark
+          - paragraph [ref=e340]: Absent
+      - generic [ref=e341]:
+        - generic [ref=e342]:
+          - generic [ref=e343]:
+            - heading "Attendance Controls" [level=3] [ref=e344]
+            - paragraph [ref=e345]: Clock the intern in or out on their behalf for today.
+          - generic [ref=e346]:
+            - button "Clock In Intern" [active] [ref=e347]:
+              - img
+              - text: Clock In Intern
+            - button "Clock Out Intern" [ref=e348]:
+              - img
+              - text: Clock Out Intern
+        - generic [ref=e349]:
+          - heading "Attendance Remark" [level=3] [ref=e351]
+          - generic [ref=e352]:
+            - generic [ref=e353]: Remark Type
+            - combobox [ref=e354]:
+              - generic: Absent
+              - img
+          - generic [ref=e355]:
+            - generic [ref=e356]: Remark Note
+            - textbox "Remark Note" [ref=e357]:
+              - /placeholder: Add a note about the attendance decision...
+              - text: Functional absent test
+          - button "Apply Remark" [ref=e358]:
+            - img
+            - text: Apply Remark
+      - generic [ref=e359]:
+        - generic [ref=e360]:
+          - generic [ref=e361]:
+            - heading "Weekly Schedule" [level=3] [ref=e362]
+            - paragraph [ref=e363]: Schedule updates are optional. Open edit mode only when you need to change the intern's hours.
+          - button "Edit Schedule" [ref=e364]
+        - generic [ref=e365]:
+          - generic [ref=e366]:
+            - paragraph [ref=e367]: Monday
+            - paragraph [ref=e368]: 07:00 - 16:00
+          - generic [ref=e369]:
+            - paragraph [ref=e370]: Tuesday
+            - paragraph [ref=e371]: 07:00 - 16:00
+          - generic [ref=e372]:
+            - paragraph [ref=e373]: Wednesday
+            - paragraph [ref=e374]: 07:00 - 16:00
+          - generic [ref=e375]:
+            - paragraph [ref=e376]: Thursday
+            - paragraph [ref=e377]: 07:00 - 16:00
+          - generic [ref=e378]:
+            - paragraph [ref=e379]: Friday
+            - paragraph [ref=e380]: 07:00 - 16:00
+          - generic [ref=e381]:
+            - paragraph [ref=e382]: Saturday
+            - paragraph [ref=e383]: No schedule
+          - generic [ref=e384]:
+            - paragraph [ref=e385]: Sunday
+            - paragraph [ref=e386]: No schedule
+    - button "Close" [ref=e387]:
+      - img
+      - generic [ref=e388]: Close

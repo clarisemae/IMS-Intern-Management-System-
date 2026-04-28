@@ -6,7 +6,7 @@ import { Button } from '@/app/components/ui/button';
 import { Avatar, AvatarFallback } from '@/app/components/ui/avatar';
 import { Badge } from '@/app/components/ui/badge';
 import { ScrollArea } from '@/app/components/ui/scroll-area';
-import { Send, Search, Paperclip, MoreVertical, Loader2, Star, Bold, Italic, List, FileText, X } from 'lucide-react';
+import { Send, Search, Paperclip, MoreVertical, Loader2, Star, Bold, Italic, List, FileText, X, Download } from 'lucide-react';
 import { cn } from '@/app/components/ui/utils';
 import { apiRequest } from '@/lib/api';
 
@@ -106,6 +106,10 @@ function downloadAttachment(attachment: MessageAttachment) {
   document.body.appendChild(anchor);
   anchor.click();
   anchor.remove();
+}
+
+function isImageAttachment(attachment: MessageAttachment | null) {
+  return Boolean(attachment?.type?.startsWith('image/'));
 }
 
 async function fileToAttachment(file: File): Promise<MessageAttachment> {
@@ -590,24 +594,58 @@ export function MessagesPage() {
                                 </div>
                               )}
                               {message.attachment && (
-                                <button
-                                  type="button"
-                                  onClick={() => downloadAttachment(message.attachment!)}
-                                  className={cn(
-                                    'mt-3 flex w-full items-center gap-3 rounded-xl border px-3 py-3 text-left',
-                                    isOwnMessage
-                                      ? 'border-white/20 bg-white/10 text-primary-foreground'
-                                      : 'border-gray-200 bg-gray-50',
-                                  )}
-                                >
-                                  <FileText className="h-5 w-5" />
-                                  <div className="min-w-0">
-                                    <p className="truncate text-sm font-medium">{message.attachment.name}</p>
-                                    <p className={cn('text-xs', isOwnMessage ? 'text-primary-foreground/70' : 'text-muted-foreground')}>
-                                      Click to download
+                                isImageAttachment(message.attachment) ? (
+                                  <div className="mt-3">
+                                    <div className="relative overflow-hidden rounded-xl">
+                                      <button
+                                        type="button"
+                                        onClick={() => downloadAttachment(message.attachment!)}
+                                        className={cn(
+                                          'absolute right-3 top-3 z-10 inline-flex h-9 w-9 items-center justify-center rounded-full border shadow-sm transition-colors',
+                                          isOwnMessage
+                                            ? 'border-white/20 bg-slate-950/55 text-white hover:bg-slate-950/75'
+                                            : 'border-white/80 bg-white/90 text-slate-700 hover:bg-white',
+                                        )}
+                                        aria-label={`Download ${message.attachment.name}`}
+                                      >
+                                        <Download className="h-4 w-4" />
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={() => downloadAttachment(message.attachment!)}
+                                        className="block overflow-hidden rounded-xl text-left"
+                                      >
+                                        <img
+                                          src={message.attachment.data}
+                                          alt={message.attachment.name}
+                                          className="max-h-72 w-full rounded-xl object-cover"
+                                        />
+                                      </button>
+                                    </div>
+                                    <p className={cn('mt-2 truncate text-xs', isOwnMessage ? 'text-primary-foreground/75' : 'text-muted-foreground')}>
+                                      {message.attachment.name}
                                     </p>
                                   </div>
-                                </button>
+                                ) : (
+                                  <button
+                                    type="button"
+                                    onClick={() => downloadAttachment(message.attachment!)}
+                                    className={cn(
+                                      'mt-3 flex w-full items-center gap-3 rounded-xl border px-3 py-3 text-left',
+                                      isOwnMessage
+                                        ? 'border-white/20 bg-white/10 text-primary-foreground'
+                                        : 'border-gray-200 bg-gray-50',
+                                    )}
+                                  >
+                                    <FileText className="h-5 w-5" />
+                                    <div className="min-w-0">
+                                      <p className="truncate text-sm font-medium">{message.attachment.name}</p>
+                                      <p className={cn('text-xs', isOwnMessage ? 'text-primary-foreground/70' : 'text-muted-foreground')}>
+                                        Click to download
+                                      </p>
+                                    </div>
+                                  </button>
+                                )
                               )}
                             </div>
                           </div>
@@ -666,14 +704,25 @@ export function MessagesPage() {
                 </div>
 
                 {pendingAttachment && (
-                  <div className="flex items-center justify-between rounded-xl border bg-muted/30 px-3 py-2">
-                    <div className="min-w-0">
-                      <p className="truncate text-sm font-medium">{pendingAttachment.name}</p>
-                      <p className="text-xs text-muted-foreground">Ready to send</p>
+                  <div className="rounded-xl border bg-muted/30 p-3">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-medium">{pendingAttachment.name}</p>
+                        <p className="text-xs text-muted-foreground">Ready to send</p>
+                      </div>
+                      <Button type="button" variant="ghost" size="icon" onClick={() => setPendingAttachment(null)}>
+                        <X className="h-4 w-4" />
+                      </Button>
                     </div>
-                    <Button type="button" variant="ghost" size="icon" onClick={() => setPendingAttachment(null)}>
-                      <X className="h-4 w-4" />
-                    </Button>
+                    {isImageAttachment(pendingAttachment) && (
+                      <div className="mt-3 overflow-hidden rounded-xl border bg-background">
+                        <img
+                          src={pendingAttachment.data}
+                          alt={pendingAttachment.name}
+                          className="max-h-52 w-full object-contain"
+                        />
+                      </div>
+                    )}
                   </div>
                 )}
 

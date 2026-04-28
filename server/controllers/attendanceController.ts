@@ -24,13 +24,15 @@ function calculateHours(timeIn: Date, timeOut: Date) {
 }
 
 function mapAttendanceRow(row: any) {
+  const isActive = Boolean(row.time_in) && !row.time_out && row.status !== "absent";
+
   return {
     id: row.id,
     date: toDateOnly(row.attendance_date),
     timeIn: row.time_in,
     timeOut: row.time_out,
     totalHours: row.total_hours,
-    status: row.time_out ? "completed" : "active",
+    status: isActive ? "active" : "completed",
     attendanceStatus: row.status,
     supervisorRemark: row.supervisor_remark === "none" ? null : row.supervisor_remark,
     remarkNote: row.remark_note ?? null,
@@ -43,7 +45,28 @@ async function getOpenAttendanceForToday(userId: number) {
   const [rows] = await db.query(
     `SELECT id, attendance_date, time_in, time_out, total_hours, status, supervisor_remark, remark_note
      FROM attendance
-     WHERE user_id = ? AND attendance_date = CURDATE() AND time_out IS NULL
+     WHERE user_id = ?
+       AND attendance_date = CURDATE()
+       AND time_in IS NOT NULL
+       AND time_out IS NULL
+       AND status <> 'absent'
+     LIMIT 1`,
+    [userId],
+  );
+
+  return (rows as any[])[0] ?? null;
+}
+
+async function getAbsentPlaceholderForToday(userId: number) {
+  const [rows] = await db.query(
+    `SELECT id, attendance_date, time_in, time_out, total_hours, status, supervisor_remark, remark_note
+     FROM attendance
+     WHERE user_id = ?
+       AND attendance_date = CURDATE()
+       AND status = 'absent'
+       AND time_in IS NULL
+       AND time_out IS NULL
+     ORDER BY id DESC
      LIMIT 1`,
     [userId],
   );
@@ -231,6 +254,22 @@ export async function timeIn(req: Request, res: Response) {
   }
 
   const attendanceStatus = await getAttendanceStatusForClockIn(req.user.id);
+  const absentPlaceholder = await getAbsentPlaceholderForToday(req.user.id);
+
+  if (absentPlaceholder) {
+    await db.execute(
+      `UPDATE attendance
+       SET time_in = NOW(), status = ?, supervisor_remark = 'none', remark_note = NULL
+       WHERE id = ?`,
+      [attendanceStatus, absentPlaceholder.id],
+    );
+
+    const updatedRecord = await getAttendanceRecordById(absentPlaceholder.id);
+
+    return res.json({
+      record: mapAttendanceRow(updatedRecord),
+    });
+  }
 
   const [result] = await db.execute<ResultSetHeader>(
     `INSERT INTO attendance (user_id, attendance_date, time_in, status, supervisor_remark, remark_note)
@@ -334,6 +373,21 @@ export async function supervisorTimeIn(req: Request, res: Response) {
   }
 
   const attendanceStatus = await getAttendanceStatusForClockIn(internId);
+  const absentPlaceholder = await getAbsentPlaceholderForToday(internId);
+
+  if (absentPlaceholder) {
+    await db.execute(
+      `UPDATE attendance
+       SET time_in = NOW(), status = ?, supervisor_remark = 'none', remark_note = NULL
+       WHERE id = ?`,
+      [attendanceStatus, absentPlaceholder.id],
+    );
+
+    const record = await getAttendanceRecordById(absentPlaceholder.id);
+
+    return res.json({ record: mapAttendanceRow(record) });
+  }
+
   const [result] = await db.execute<ResultSetHeader>(
     `INSERT INTO attendance (user_id, attendance_date, time_in, status, supervisor_remark, remark_note)
      VALUES (?, CURDATE(), NOW(), ?, 'none', NULL)`,

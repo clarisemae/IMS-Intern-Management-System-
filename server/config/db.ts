@@ -200,6 +200,26 @@ async function ensureAttendanceEnhancements() {
   }
 }
 
+async function ensureTaskReviewStatus() {
+  const [statusRows] = await db.query(
+    `SELECT COLUMN_TYPE
+     FROM INFORMATION_SCHEMA.COLUMNS
+     WHERE TABLE_SCHEMA = DATABASE()
+       AND TABLE_NAME = 'tasks'
+       AND COLUMN_NAME = 'status'
+     LIMIT 1`,
+  );
+
+  const currentType = (statusRows as any[])[0]?.COLUMN_TYPE as string | undefined;
+
+  if (currentType && (!currentType.includes("'reviewing'") || !currentType.includes("'revision'"))) {
+    await db.execute(
+      `ALTER TABLE tasks
+       MODIFY COLUMN status ENUM('pending', 'in_progress', 'reviewing', 'revision', 'completed') NOT NULL DEFAULT 'pending'`,
+    );
+  }
+}
+
 export async function testDatabaseConnection() {
   const connection = await db.getConnection();
   connection.release();
@@ -211,4 +231,5 @@ export async function testDatabaseConnection() {
   await ensureReportImageColumn();
   await ensureUniqueDailyReports();
   await ensureMessageEnhancements();
+  await ensureTaskReviewStatus();
 }

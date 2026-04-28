@@ -1,0 +1,44 @@
+- generic [ref=e3]:
+  - generic [ref=e4]:
+    - complementary [ref=e5]:
+      - generic [ref=e7]:
+        - img [ref=e9]
+        - generic [ref=e13]:
+          - heading "REGRIS" [level=1] [ref=e14]
+          - paragraph [ref=e15]: Internship Portal
+      - generic [ref=e17]:
+        - generic [ref=e18]:
+          - generic [ref=e20]: MA
+          - generic [ref=e21]:
+            - paragraph [ref=e22]: Maria Angela Mae Perez
+            - paragraph [ref=e23]: intern
+        - generic [ref=e25]: Finance
+      - navigation [ref=e26]:
+        - button "Dashboard" [ref=e27]:
+          - img [ref=e29]
+          - generic [ref=e34]: Dashboard
+        - button "Attendance" [ref=e35]:
+          - img [ref=e37]
+          - generic [ref=e40]: Attendance
+        - button "Tasks" [ref=e41]:
+          - img [ref=e43]
+          - generic [ref=e46]: Tasks
+        - button "Messages" [ref=e47]:
+          - img [ref=e49]
+          - generic [ref=e51]: Messages
+        - button "Profile" [ref=e52]:
+          - img [ref=e54]
+          - generic [ref=e57]: Profile
+      - button "Logout" [ref=e59]:
+        - img
+        - generic [ref=e60]: Logout
+    - main [ref=e61]:
+      - generic [ref=e63]:
+        - generic [ref=e64]:
+          - paragraph [ref=e65]: Intern Management Dashboard
+          - heading "Operations workspace" [level=1] [ref=e66]
+        - generic [ref=e67]: intern access
+      - generic [ref=e69]:
+        - img [ref=e70]
+        - text: Loading dashboard...
+  - region "Notifications alt+T"

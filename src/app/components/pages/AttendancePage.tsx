@@ -20,6 +20,8 @@ interface AttendanceRecord {
   totalHours: number | null;
   status: 'active' | 'completed';
   attendanceStatus: AttendanceStatus;
+  supervisorRemark?: 'early_out' | 'half_day' | 'absent' | null;
+  remarkNote?: string | null;
   reportId: number | null;
   reportStatus: ReportStatus | null;
 }
@@ -176,6 +178,10 @@ function getActionLabel(record: AttendanceRecord | null) {
     return 'Clock In';
   }
 
+  if (record.attendanceStatus === 'absent' && !record.timeIn && !record.timeOut) {
+    return 'Marked Absent';
+  }
+
   if (!record.timeOut) {
     return 'Clock Out';
   }
@@ -216,7 +222,13 @@ export function AttendancePage() {
   const [isSavingReport, setIsSavingReport] = useState(false);
   const [isDownloadingReport, setIsDownloadingReport] = useState(false);
 
-  const isClockedIn = Boolean(todayRecord && !todayRecord.timeOut);
+  const isMarkedAbsent = Boolean(
+    todayRecord
+    && todayRecord.attendanceStatus === 'absent'
+    && !todayRecord.timeIn
+    && !todayRecord.timeOut,
+  );
+  const isClockedIn = Boolean(todayRecord?.timeIn && !todayRecord.timeOut);
 
   useEffect(() => {
     const interval = window.setInterval(() => {
@@ -494,11 +506,7 @@ export function AttendancePage() {
 
   return (
     <div className="p-6 space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-semibold">Attendance</h1>
-          <p className="mt-1 text-gray-600">Track your daily attendance and save your daily log after clock-out</p>
-        </div>
+      <div className="flex justify-end">
         <Button variant="outline" disabled>
           <Download className="mr-2 h-4 w-4" />
           Export Report
@@ -637,11 +645,13 @@ export function AttendancePage() {
                           ? 'secondary'
                           : isClockedIn
                             ? 'default'
+                            : isMarkedAbsent
+                              ? 'secondary'
                             : 'outline'
                       }
                       className="rounded-full px-3 py-1"
                     >
-                      {attendanceCompleted ? 'Completed' : isClockedIn ? 'Clocked In' : 'Ready to Clock In'}
+                      {attendanceCompleted ? 'Completed' : isClockedIn ? 'Clocked In' : isMarkedAbsent ? 'Marked Absent' : 'Ready to Clock In'}
                     </Badge>
                   </div>
                   <div>
@@ -650,7 +660,7 @@ export function AttendancePage() {
                       className="w-full"
                       size="lg"
                       variant={isClockedIn ? 'destructive' : 'default'}
-                      disabled={isSubmitting || attendanceCompleted}
+                      disabled={isSubmitting || attendanceCompleted || isMarkedAbsent}
                     >
                       {isSubmitting && <Loader2 className="mr-2 h-5 w-5 animate-spin" />}
                       {!isSubmitting && <Clock className="mr-2 h-5 w-5" />}
@@ -703,6 +713,16 @@ export function AttendancePage() {
                           </Badge>
                         </div>
                         <p className="mt-2 text-xs text-muted-foreground">{schedule.status.detail}</p>
+                      </div>
+                    )}
+
+                    {isMarkedAbsent && (
+                      <div className="rounded-xl border border-amber-200 bg-amber-50/60 p-4">
+                        <p className="text-sm font-medium text-amber-900">Marked absent for today</p>
+                        <p className="mt-1 text-sm text-amber-800/80">
+                          Your supervisor recorded today as absent.
+                          {todayRecord?.remarkNote ? ` Note: ${todayRecord.remarkNote}` : ''}
+                        </p>
                       </div>
                     )}
 
@@ -858,11 +878,17 @@ export function AttendancePage() {
                               </TableCell>
                               <TableCell>
                                 <Badge variant={record.status === 'active' ? 'default' : 'secondary'}>
-                                  {record.status === 'active' ? 'Active' : 'Completed'}
+                                  {record.attendanceStatus === 'absent'
+                                    ? 'Absent'
+                                    : record.status === 'active'
+                                      ? 'Active'
+                                      : 'Completed'}
                                 </Badge>
                               </TableCell>
                               <TableCell>
-                                {record.status === 'completed' ? (
+                                {record.attendanceStatus === 'absent' ? (
+                                  <span className="text-xs text-muted-foreground">No log required</span>
+                                ) : record.status === 'completed' ? (
                                   <div className="flex items-center gap-2">
                                     <Button
                                       variant="ghost"
@@ -947,6 +973,8 @@ export function AttendancePage() {
                         ? 'Today’s attendance is complete.'
                         : isClockedIn
                           ? 'You are actively clocked in right now.'
+                          : isMarkedAbsent
+                            ? 'You have been marked absent for today.'
                           : 'You are not currently clocked in.'}
                     </p>
                   </div>

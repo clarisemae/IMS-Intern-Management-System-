@@ -1,0 +1,102 @@
+- generic [ref=e3]:
+  - generic [ref=e4]:
+    - complementary [ref=e5]:
+      - generic [ref=e7]:
+        - img [ref=e9]
+        - generic [ref=e13]:
+          - heading "REGRIS" [level=1] [ref=e14]
+          - paragraph [ref=e15]: Internship Portal
+      - generic [ref=e17]:
+        - generic [ref=e18]:
+          - generic [ref=e20]: MA
+          - generic [ref=e21]:
+            - paragraph [ref=e22]: Maria Angela Mae Perez
+            - paragraph [ref=e23]: intern
+        - generic [ref=e25]: Finance
+      - navigation [ref=e26]:
+        - button "Dashboard" [ref=e27]:
+          - img [ref=e29]
+          - generic [ref=e34]: Dashboard
+        - button "Attendance" [ref=e35]:
+          - img [ref=e37]
+          - generic [ref=e40]: Attendance
+        - button "Tasks" [ref=e41]:
+          - img [ref=e43]
+          - generic [ref=e46]: Tasks
+        - button "Messages" [active] [ref=e47]:
+          - img [ref=e49]
+          - generic [ref=e51]: Messages
+        - button "Profile" [ref=e52]:
+          - img [ref=e54]
+          - generic [ref=e57]: Profile
+      - button "Logout" [ref=e59]:
+        - img
+        - generic [ref=e60]: Logout
+    - main [ref=e61]:
+      - generic [ref=e63]:
+        - generic [ref=e64]:
+          - paragraph [ref=e65]: Intern Management Dashboard
+          - heading "Operations workspace" [level=1] [ref=e66]
+        - generic [ref=e67]: intern access
+      - generic [ref=e404]:
+        - generic [ref=e405]:
+          - generic [ref=e407]:
+            - img [ref=e408]
+            - textbox "Search conversations..." [ref=e411]
+          - generic [ref=e415]:
+            - button "CE Clarise Mae Elle Supervisor Favorite conversation No messages yet" [ref=e416]:
+              - generic [ref=e417]:
+                - generic [ref=e420]: CE
+                - generic [ref=e421]:
+                  - generic [ref=e422]:
+                    - generic [ref=e423]:
+                      - heading "Clarise Mae Elle" [level=4] [ref=e425]
+                      - paragraph [ref=e426]: Supervisor
+                    - button "Favorite conversation" [ref=e428]:
+                      - img [ref=e429]
+                  - paragraph [ref=e432]: No messages yet
+            - button "SA System Admin Admin Favorite conversation No messages yet" [ref=e433]:
+              - generic [ref=e434]:
+                - generic [ref=e437]: SA
+                - generic [ref=e438]:
+                  - generic [ref=e439]:
+                    - generic [ref=e440]:
+                      - heading "System Admin" [level=4] [ref=e442]
+                      - paragraph [ref=e443]: Admin
+                    - button "Favorite conversation" [ref=e445]:
+                      - img [ref=e446]
+                  - paragraph [ref=e449]: No messages yet
+        - generic [ref=e450]:
+          - generic [ref=e452]:
+            - generic [ref=e453]:
+              - generic [ref=e456]: CE
+              - generic [ref=e457]:
+                - heading "Clarise Mae Elle" [level=3] [ref=e459]
+                - paragraph [ref=e460]: Supervisor
+            - generic [ref=e461]:
+              - button [ref=e462]:
+                - img
+              - button [ref=e463]:
+                - img
+          - generic [ref=e468]: No messages yet. Start the conversation with a greeting, update, or shared file.
+          - generic [ref=e470]:
+            - generic [ref=e471]:
+              - button "Bold" [ref=e472]:
+                - img
+                - text: Bold
+              - button "Italic" [ref=e473]:
+                - img
+                - text: Italic
+              - button "List" [ref=e474]:
+                - img
+                - text: List
+              - button "Attach File" [ref=e475]:
+                - img
+                - text: Attach File
+            - generic [ref=e476]:
+              - generic [ref=e477]:
+                - generic: Type a message...
+              - button "Send" [disabled]:
+                - img
+                - text: Send
+  - region "Notifications alt+T"
